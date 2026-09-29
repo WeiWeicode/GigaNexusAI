@@ -1,0 +1,97 @@
+/* 沿用 Canvas UI 設計 Token，與員工入口網風格一致 */
+:root {
+  --c-brand-50: #e6f7f1;
+  --c-brand-100: #c2ecdd;
+  --c-brand-400: #2bb68b;
+  --c-brand-500: #12a57c;
+  --c-brand-600: #0b8a68;
+  --c-brand-700: #086d53;
+
+  --c-success: #16a34a;
+  --c-success-soft: #dcfce7;
+  --c-warning: #d97706;
+  --c-warning-soft: #fef3c7;
+  --c-danger: #dc2626;
+  --c-danger-soft: #fee2e2;
+  --c-info: #2563eb;
+  --c-info-soft: #dbeafe;
+
+  --c-bg: #f4f7f6;
+  --c-bg-subtle: #eef2f1;
+  --c-surface: #ffffff;
+  --c-surface-2: #fafbfb;
+  --c-surface-3: #f1f5f4;
+  --c-border: #e2e8e6;
+  --c-border-strong: #cbd5d2;
+  --c-text: #10231d;
+  --c-text-muted: #5b6b66;
+  --c-text-subtle: #8b9995;
+  --c-on-brand: #ffffff;
+  --c-overlay: rgba(9, 27, 22, 0.45);
+
+  --g-weekend: rgba(16, 35, 29, 0.035);
+  --g-line: #e9eeec;
+  --g-line-strong: #d6dedb;
+  --g-today: #e11d48;
+  --g-dep: #8b9995;
+  --g-dep-active: #10231d;
+  --g-row-hover: rgba(18, 165, 124, 0.06);
+  --g-row-selected: rgba(18, 165, 124, 0.12);
+
+  --c-r-xs: 6px;
+  --c-r-sm: 8px;
+  --c-r-md: 12px;
+  --c-r-lg: 16px;
+  --c-r-full: 999px;
+
+  --c-shadow-xs: 0 1px 2px rgba(16, 35, 29, 0.06);
+  --c-shadow-sm: 0 2px 6px rgba(16, 35, 29, 0.07);
+  --c-shadow-md: 0 8px 20px -6px rgba(16, 35, 29, 0.14);
+  --c-shadow-lg: 0 20px 44px -12px rgba(16, 35, 29, 0.22);
+  --c-ring: 0 0 0 3px rgba(18, 165, 124, 0.22);
+
+  --c-font: 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --c-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --c-dur: 0.18s;
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --c-brand-50: #0f2a22;
+  --c-brand-100: #12382c;
+
+  --c-bg: #0d1512;
+  --c-bg-subtle: #0a110f;
+  --c-surface: #141d1a;
+  --c-surface-2: #18231f;
+  --c-surface-3: #1e2b26;
+  --c-border: #24332e;
+  --c-border-strong: #33443e;
+  --c-text: #e8f0ed;
+  --c-text-muted: #9bada7;
+  --c-text-subtle: #718480;
+  --c-overlay: rgba(0, 0, 0, 0.6);
+
+  --c-success-soft: #0d2f1c;
+  --c-warning-soft: #33250a;
+  --c-danger-soft: #3a1414;
+  --c-info-soft: #10233f;
+
+  --g-weekend: rgba(255, 255, 255, 0.025);
+  --g-line: #1d2925;
+  --g-line-strong: #2a3934;
+  --g-today: #fb7185;
+  --g-dep: #718480;
+  --g-dep-active: #e8f0ed;
+  --g-row-hover: rgba(43, 182, 139, 0.07);
+  --g-row-selected: rgba(43, 182, 139, 0.16);
+
+  --c-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --c-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --c-shadow-md: 0 8px 24px -6px rgba(0, 0, 0, 0.6);
+  --c-shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  --c-ring: 0 0 0 3px rgba(43, 182, 139, 0.3);
+
+  color-scheme: dark;
+}

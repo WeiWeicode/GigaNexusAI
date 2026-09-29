@@ -1,0 +1,7 @@
+# 工作區文件專案(GitLab giganexus/giganexusai):只收全專案總圖與 NexusPlan 甘特圖
+# 其他專案(giga-api-gateway-bff、giga-Portal、GigaItApp、RustIt)各自是獨立 repo,不收進來
+/*
+!/.gitignore
+!/.gitattributes
+!/PROJECT-MAP.md
+!/GigaNexusAIPlan/
