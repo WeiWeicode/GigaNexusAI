@@ -1,0 +1,803 @@
+{
+  "version": 1,
+  "id": "giga-api-gateway-bff",
+  "name": "giga-api-gateway-bff",
+  "updated": "2026-09-30",
+  "summary": "Gateway:Nginx(:443 瀏覽器與系統對系統、:9443 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。所有 GigaNexus 專案的上位規範。",
+  "sources": [
+    "giga-api-gateway-bff/docs/PROJECT-MAP.md",
+    "giga-api-gateway-bff/docs/ARCHITECTURE.md",
+    "giga-api-gateway-bff/docs/DATABASE.md(PRD v0.7)",
+    "giga-api-gateway-bff/bff/src/db/schema/*.ts(已實作的資料表以此為準)",
+    "giga-api-gateway-bff/bff/src/app.ts"
+  ],
+  "architecture": {
+    "direction": "LR",
+    "layers": [
+      { "id": "client", "name": "用戶端 / 呼叫端", "description": "瀏覽器 SPA、端點 Agent、下游後端、管理 CLI" },
+      { "id": "entry", "name": "入口(Nginx)", "description": "nginx/:TLS、SPA 託管、/api 一律轉 BFF、:9443 mTLS" },
+      { "id": "interface", "name": "介面層", "description": "bff/src/modules/*/routes.ts 等:參數驗證、回應格式,不寫商業規則" },
+      { "id": "core", "name": "核心邏輯", "description": "登入、權限、路由比對與轉送、後端上架" },
+      { "id": "infra", "name": "基礎設施", "description": "bff/src/plugins/、bff/src/db/:資料庫、Redis、外部唯讀來源" },
+      { "id": "shared", "name": "共用套件", "description": "給其他 repo 使用:web-kit、backend-sdk、後端樣本" },
+      { "id": "store", "name": "資料 / 外部系統", "description": "SQL Server、Redis、AD、BPM / LOS / PortalSolar、下游服務" }
+    ],
+    "components": [
+      { "id": "browser", "name": "瀏覽器 SPA", "layer": "client", "type": "client", "status": "active", "description": "giga-Portal、GigaItApp 等前端,以 httpOnly Cookie 呼叫 /api/*" },
+      { "id": "agent", "name": "端點 Agent / Watchdog", "layer": "client", "type": "client", "status": "planned", "description": "200+ 台 Windows,裝置憑證 mTLS" },
+      { "id": "downstream-client", "name": "下游後端(系統對系統)", "layer": "client", "type": "client", "status": "active", "description": "以 X-Api-Key 呼叫 /api/{system}/*(ARCHITECTURE T9);啟動時以 SDK 自動註冊" },
+      { "id": "cli", "name": "管理 CLI", "layer": "client", "type": "module", "status": "active", "path": "bff/src/cli/", "description": "npm run gw:路由查詢、OpenAPI 轉路由草稿、發佈(apply)" },
+
+      { "id": "nginx-443", "name":"Nginx :443", "layer": "entry", "type": "gateway", "status": "active", "path": "nginx/conf.d/portal.conf", "description": ":80 轉址、:443 SPA 子路徑託管(/srv/www/<app>/current)、/api → BFF、/ws、/webhook(IP 白名單)" },
+      { "id": "nginx-9443", "name": "Nginx :9443", "layer": "entry", "type": "gateway", "status": "active", "path": "nginx/conf.d/agent.conf", "description": "Agent 專用:ssl_verify_client on、gRPC(HTTP/2)grpc_pass 到 Endpoint Server(ARCHITECTURE D3)" },
+      { "id": "nginx-snippets", "name": "共用片段", "layer": "entry", "type": "config", "status": "active", "path": "nginx/snippets/、templates/、allowlists/", "description": "ssl、security-headers、proxy-bff、websocket、spa-*、json-errors;依部署區的值放 templates/、allowlists/<區域>/" },
+
+      { "id": "auth-routes", "name": "Auth API", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/auth/routes.ts", "description": "/api/auth/login、refresh、logout、me、password/change、register/verify;/_auth/verify(Nginx auth_request);/.well-known/jwks.json" },
+      { "id": "router-plugin", "name": "動態路由入口 /api/*", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/router/plugin.ts", "description": "catch-all /api/*:table 比對 → guards → rbac → upstream" },
+      { "id": "admin-routes", "name": "Admin API", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/admin/registration.ts", "description": "POST /api/admin/registrations(後端自動註冊)、GET /api/admin/routes/catalog(路由查詢);路由 / 權限 CRUD 供 GigaItApp 使用(部分規劃中)" },
+      { "id": "admin-demo", "name": "Demo API(非正式區)", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/admin/db-viewer.ts、onboarding.ts", "description": "/api/admin/db/tables、/api/admin/demo/*;gwEnv=prod 時不註冊" },
+      { "id": "notify-ws", "name": "通知 WebSocket", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/notify/ws.ts", "description": "/ws/notify,握手時驗 Cookie" },
+      { "id": "health", "name": "健康檢查", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/health/routes.ts", "description": "/healthz、/readyz" },
+      { "id": "webhook", "name": "Webhook 驗簽", "layer": "interface", "type": "api", "status": "planned", "description": "/webhook/{source}:HMAC 驗簽後分派(ARCHITECTURE T7)" },
+
+      { "id": "auth-plugin", "name": "認證 Hook / CSRF", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/plugin.ts", "description": "驗 Access Token Cookie / API Key、CSRF 雙重提交;登入前免驗證的路徑白名單" },
+      { "id": "auth-login", "name": "登入(AD / 本機)", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/login.ts、ldap.ts、password.ts", "description": "AD 3 網域 bind(ldapts)或本機帳號(Argon2id);舊入口帳號首次登入遷移;一個工號一種驗證方式(D8)" },
+      { "id": "auth-profile", "name": "人事資料", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/profile.ts、identity.ts", "description": "BPM > LOS > AD 合併;登入時補查(並行,各 3 秒逾時)" },
+      { "id": "auth-session", "name": "工作階段 / JWT", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/session.ts、keys.ts", "description": "httpOnly Access / Refresh Cookie、RT 家族、撤銷;簽發 60 秒 X-Internal-Token 與 JWKS(D4、D5)" },
+      { "id": "auth-apikey", "name": "API Key", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/api-key.ts", "description": "系統對系統 X-Api-Key:前綴查詢、Argon2id 雜湊、權限範圍、允許 IP" },
+      { "id": "rbac", "name": "RBAC 權限計算", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/rbac/permission.ts", "description": "有效角色 = AD 群組 ∪ 公司預設 ∪ 指派規則(v0.7)∪ 個別指派;結果快取 gw:perm:{userId}:{pv}" },
+      { "id": "router-table", "name": "路由樹", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/table.ts", "description": "記憶體內路由樹(find-my-way),明確路徑優先於萬用字元" },
+      { "id": "router-guards", "name": "限流 / 快取 / 斷路器", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/guards.ts", "description": "滑動視窗限流、GET 回應快取、斷路器狀態(Redis)" },
+      { "id": "router-upstream", "name": "上游轉發", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/upstream.ts", "description": "undici 呼叫下游,附 X-Internal-Token(aud = 服務代碼)" },
+      { "id": "router-sync", "name": "快照載入", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/snapshot.ts、sync.ts", "description": "訂閱 gw:config:changed,載入快照並原子替換路由樹;每 60 秒補償檢查(DATABASE §7.3)" },
+      { "id": "route-import", "name": "OpenAPI 匯入", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/admin/route-import.ts、cli/openapi.ts", "description": "OpenAPI(x-gateway、x-permissions、x-gherkin)→ 路由草稿(draft)" },
+      { "id": "notify-worker", "name": "通知 Worker", "layer": "core", "type": "worker", "status": "planned", "description": "BullMQ:Email / 站內通知(LINE 暫緩)" },
+      { "id": "sync-worker", "name": "人員同步 Worker", "layer": "core", "type": "worker", "status": "planned", "description": "BullMQ 每小時:BPM + LOS → gw.user / gw.user_company / gw.department(DATABASE §8.3)" },
+
+      { "id": "plugin-db", "name": "DB 連線池", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/plugins/db.ts、db/client.ts", "description": "giganexus_gw(讀寫)與 BPM / LOS / PortalSolar(各自唯讀帳號與連線池)" },
+      { "id": "plugin-redis", "name": "Redis 連線", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/plugins/redis.ts", "description": "ioredis;鍵一律 gw: 開頭並登記於 DATABASE §6" },
+      { "id": "db-schema", "name": "Drizzle schema", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/db/schema/", "description": "資料表定義唯一來源:api.ts、identity.ts、notify.ts、audit.ts" },
+      { "id": "db-external", "name": "外部唯讀 view", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/db/external/", "description": "bpm.ts、los.ts、portal.ts;drizzle-kit 不處理" },
+      { "id": "db-release", "name": "發佈同步", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/db/sync/release.ts", "description": "draft → published、寫 config_release,提交後推 Redis 快照 + PUBLISH(先 DB 後 Redis)" },
+      { "id": "db-migrate", "name": "Migration", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/db/migrate.ts、db/migrations/、sql2012-guard.ts", "description": "drizzle-kit generate + 人工審查 + db:check-2012;禁止 push" },
+      { "id": "config", "name": "設定 / 錯誤代碼", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/config.ts、errors.ts、plugins/errors.ts", "description": "zod 驗證設定;錯誤代碼(PRD §8.1.1)與統一錯誤回應" },
+
+      { "id": "web-kit", "name": "@giganexus/web-kit", "layer": "shared", "type": "package", "status": "active", "path": "web-kit/src/", "description": "前端 HTTP Client:CSRF、Token 自動更新、/api/auth/me 型別" },
+      { "id": "backend-sdk", "name": "@giganexus/backend-sdk", "layer": "shared", "type": "package", "status": "active", "path": "sdk/node/src/", "description": "驗證 X-Internal-Token(JWKS)、自動註冊、gw-lookup 路由查詢 CLI" },
+      { "id": "sample-backend", "name": "Node 後端樣本", "layer": "shared", "type": "package", "status": "active", "path": "samples/node-backend/", "description": "下游 Fastify 後端範本(port 51201),新後端複製此樣本" },
+
+      { "id": "sql-gw", "name": "giganexus_gw", "layer": "store", "type": "datastore", "status": "active", "description": "SQL Server 2012,schema gw" },
+      { "id": "redis", "name": "Redis 7", "layer": "store", "type": "datastore", "status": "active", "description": "快照 / Pub/Sub / 快取 / 限流 / 佇列" },
+      { "id": "ad", "name": "Windows AD ×3", "layer": "store", "type": "datastore", "status": "active", "description": "gsc / gsmc / ygdmc" },
+      { "id": "ext-hr", "name": "BPM / LOS / PortalSolar", "layer": "store", "type": "external", "status": "active", "description": "唯讀人事與舊帳號來源" },
+      { "id": "downstream", "name": "下游服務 51200–51300", "layer": "store", "type": "external", "status": "active", "description": "itapp-api、portal-api、Endpoint Server、MES…" }
+    ],
+    "flows": [
+      { "from": "browser", "to": "nginx-443", "label": "HTTPS", "status": "active" },
+      { "from": "downstream-client", "to": "nginx-443", "label": "X-Api-Key", "status": "active" },
+      { "from": "agent", "to": "nginx-9443", "label": "mTLS gRPC", "status": "planned" },
+      { "from": "nginx-443", "to": "auth-routes", "label": "/api/auth/*、auth_request", "status": "active" },
+      { "from": "nginx-443", "to": "router-plugin", "label": "/api/*", "status": "active" },
+      { "from": "nginx-443", "to": "admin-routes", "label": "/api/admin/*", "status": "active" },
+      { "from": "nginx-443", "to": "notify-ws", "label": "/ws/notify", "status": "active" },
+      { "from": "nginx-443", "to": "webhook", "label": "/webhook/*", "status": "planned" },
+      { "from": "nginx-443", "to": "downstream", "label": "/ws/endpoint/* 驗證後直連", "status": "planned" },
+      { "from": "nginx-9443", "to": "downstream", "label": "grpc_pass", "status": "planned" },
+      { "from": "auth-routes", "to": "auth-login", "status": "active" },
+      { "from": "auth-routes", "to": "auth-session", "status": "active" },
+      { "from": "auth-login", "to": "auth-profile", "status": "active" },
+      { "from": "auth-login", "to": "ad", "label": "LDAP bind", "status": "active" },
+      { "from": "auth-login", "to": "plugin-db", "label": "本機帳號 / 舊入口", "status": "active" },
+      { "from": "auth-profile", "to": "db-external", "status": "active" },
+      { "from": "auth-session", "to": "plugin-redis", "label": "RT 家族 / 撤銷", "status": "active" },
+      { "from": "router-plugin", "to": "auth-plugin", "label": "驗身分", "status": "active" },
+      { "from": "router-plugin", "to": "router-table", "label": "比對", "status": "active" },
+      { "from": "router-plugin", "to": "router-guards", "status": "active" },
+      { "from": "router-plugin", "to": "rbac", "label": "權限", "status": "active" },
+      { "from": "router-plugin", "to": "router-upstream", "label": "轉發", "status": "active" },
+      { "from": "auth-plugin", "to": "auth-apikey", "status": "active" },
+      { "from": "router-upstream", "to": "downstream", "label": "X-Internal-Token", "status": "active" },
+      { "from": "router-upstream", "to": "auth-session", "label": "簽內部 Token", "status": "active" },
+      { "from": "router-guards", "to": "plugin-redis", "label": "限流 / 快取 / 斷路器", "status": "active" },
+      { "from": "rbac", "to": "plugin-redis", "label": "gw:perm 快取", "status": "active" },
+      { "from": "rbac", "to": "plugin-db", "status": "active" },
+      { "from": "router-sync", "to": "router-table", "label": "原子替換", "status": "active" },
+      { "from": "plugin-redis", "to": "router-sync", "label": "Pub/Sub gw:config:changed", "status": "active" },
+      { "from": "admin-routes", "to": "route-import", "label": "自動註冊 → 草稿", "status": "active" },
+      { "from": "cli", "to": "route-import", "status": "active" },
+      { "from": "cli", "to": "db-release", "label": "發佈", "status": "active" },
+      { "from": "db-release", "to": "plugin-db", "status": "active" },
+      { "from": "db-release", "to": "plugin-redis", "label": "快照 + PUBLISH", "status": "active" },
+      { "from": "route-import", "to": "plugin-db", "status": "active" },
+      { "from": "notify-ws", "to": "auth-session", "label": "驗 Cookie", "status": "active" },
+      { "from": "webhook", "to": "notify-worker", "status": "planned" },
+      { "from": "notify-worker", "to": "plugin-redis", "label": "BullMQ", "status": "planned" },
+      { "from": "sync-worker", "to": "db-external", "status": "planned" },
+      { "from": "sync-worker", "to": "plugin-db", "status": "planned" },
+      { "from": "plugin-db", "to": "sql-gw", "status": "active" },
+      { "from": "db-external", "to": "ext-hr", "label": "唯讀", "status": "active" },
+      { "from": "plugin-redis", "to": "redis", "status": "active" },
+      { "from": "db-migrate", "to": "sql-gw", "label": "migrate 容器", "status": "active" },
+      { "from": "db-schema", "to": "db-migrate", "label": "generate", "status": "active" },
+      { "from": "browser", "to": "web-kit", "label": "使用", "status": "active" },
+      { "from": "web-kit", "to": "auth-routes", "label": "me / refresh / CSRF", "status": "active" },
+      { "from": "downstream", "to": "backend-sdk", "label": "使用", "status": "active" },
+      { "from": "backend-sdk", "to": "admin-routes", "label": "註冊 / catalog", "status": "active" },
+      { "from": "backend-sdk", "to": "auth-routes", "label": "JWKS 驗章", "status": "active" },
+      { "from": "sample-backend", "to": "backend-sdk", "label": "範本", "status": "active" }
+    ]
+  },
+  "database": {
+    "notes": [
+      "SQL Server 2012 Standard(11.00.2100 RTM):不可用 JSON 函式、CREATE OR ALTER、DROP … IF EXISTS、STRING_AGG、TRIM、分割(DATABASE §0)。",
+      "主鍵一律 INT IDENTITY(紀錄類 BIGINT);對外識別以 code 唯一值為準。",
+      "★共通欄位 audit=true:created_at DATETIME2(3)、created_by NVARCHAR(64)、updated_at DATETIME2(3)、updated_by NVARCHAR(64)、row_ver ROWVERSION(樂觀鎖)。",
+      "status=planned 的資料表 / 欄位為 PRD v0.7 規格,尚未建立 migration。",
+      "SQL Server 是事實來源,Redis 為衍生資料(先提交 DB 再更新 Redis)。"
+    ],
+    "commonColumns": [
+      { "name": "created_at", "type": "DATETIME2(3)" },
+      { "name": "created_by", "type": "NVARCHAR(64)" },
+      { "name": "updated_at", "type": "DATETIME2(3)" },
+      { "name": "updated_by", "type": "NVARCHAR(64)" },
+      { "name": "row_ver", "type": "ROWVERSION", "note": "樂觀鎖" }
+    ],
+    "stores": [
+      { "id": "gw", "name": "giganexus_gw", "engine": "SQL Server 2012", "access": "讀寫", "description": "Gateway 自有資料庫,schema gw" },
+      { "id": "bpm", "name": "BPM(EFGP)", "engine": "SQL Server 2019", "access": "唯讀(加密)", "description": "人事主來源;view 由 BPM 負責人提供(暫定)" },
+      { "id": "los", "name": "LOS", "engine": "SQL Server 2012", "access": "唯讀", "description": "EmployeeInfo view(排除個資欄位)" },
+      { "id": "portalsolar", "name": "PortalSolar", "engine": "SQL Server 2012", "access": "唯讀", "description": "舊單一入口 LoginData view(不含 EName)" },
+      { "id": "redis", "name": "Redis 7", "engine": "Redis", "access": "讀寫", "description": "衍生資料,可由 SQL Server 重建" }
+    ],
+    "groups": [
+      { "id": "api", "name": "API 管理", "description": "上游、路由、聚合、限流、發佈、匯入(DATABASE §2)" },
+      { "id": "identity", "name": "身分與權限", "description": "使用者、角色、權限、API Key(§3)" },
+      { "id": "company", "name": "公司與本機帳號", "description": "公司、網域、所屬、本機帳號(§3.1)" },
+      { "id": "rule", "name": "指派規則 / 部門 / 應用", "description": "PRD v0.7 規格(§3.2)" },
+      { "id": "notify", "name": "通知與 Webhook", "description": "§4" },
+      { "id": "audit", "name": "稽核與同步紀錄", "description": "§5、§8.5" },
+      { "id": "external", "name": "外部唯讀來源", "description": "BPM / LOS / PortalSolar view(§8、§9)" }
+    ],
+    "tables": [
+      {
+        "id": "gw.upstream", "store": "gw", "group": "api", "status": "active", "audit": true,
+        "description": "上游服務;code 亦為內部 Token 的 aud",
+        "columns": [
+          { "name": "upstream_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(50)", "key": "UQ", "note": "服務代碼,如 go-mes" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "system_code", "type": "VARCHAR(30)", "note": "mes / hrm / fms / endpoint / bpm / erp / portal" },
+          { "name": "protocol", "type": "VARCHAR(10)", "note": "http / https" },
+          { "name": "lb_strategy", "type": "VARCHAR(20)", "note": "round_robin / least_conn" },
+          { "name": "timeout_ms", "type": "INT" },
+          { "name": "retry_count", "type": "TINYINT" },
+          { "name": "circuit_fail_threshold", "type": "SMALLINT" },
+          { "name": "health_check_path", "type": "VARCHAR(200)" },
+          { "name": "tls_verify", "type": "BIT" },
+          { "name": "forward_cookies", "type": "BIT" },
+          { "name": "owner", "type": "NVARCHAR(64)" },
+          { "name": "project", "type": "VARCHAR(100)", "note": "實作此服務的 repo 資料夾名稱(x-gateway.project)" },
+          { "name": "archatlas_node_id", "type": "VARCHAR(50)", "note": "對應架構圖節點 ID" },
+          { "name": "is_enabled", "type": "BIT" },
+          { "name": "description", "type": "NVARCHAR(500)" }
+        ]
+      },
+      {
+        "id": "gw.upstream_target", "store": "gw", "group": "api", "status": "active", "audit": true,
+        "description": "上游實例;port 必須在 51200–51300",
+        "columns": [
+          { "name": "target_id", "type": "INT", "key": "PK" },
+          { "name": "upstream_id", "type": "INT", "key": "FK" },
+          { "name": "base_url", "type": "VARCHAR(300)" },
+          { "name": "weight", "type": "SMALLINT" },
+          { "name": "environment", "type": "VARCHAR(10)", "note": "test / prod" },
+          { "name": "is_enabled", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.api_route", "store": "gw", "group": "api", "status": "active", "audit": true,
+        "description": "API 路由(IT 管理介面主要編輯對象);唯一 (method, public_path) WHERE status <> 'disabled'",
+        "columns": [
+          { "name": "route_id", "type": "INT", "key": "PK" },
+          { "name": "route_code", "type": "VARCHAR(100)", "key": "UQ", "note": "如 mes.workorder.get(OpenAPI operationId)" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "system_code", "type": "VARCHAR(30)", "note": "決定 /api/{system_code} 前綴" },
+          { "name": "method", "type": "VARCHAR(10)" },
+          { "name": "public_path", "type": "VARCHAR(300)" },
+          { "name": "route_type", "type": "VARCHAR(20)", "note": "proxy / aggregate / internal / mock" },
+          { "name": "upstream_id", "type": "INT", "key": "FK" },
+          { "name": "upstream_method", "type": "VARCHAR(10)" },
+          { "name": "upstream_path", "type": "VARCHAR(300)" },
+          { "name": "auth_mode", "type": "VARCHAR(20)", "note": "public / authenticated / permission / api_key" },
+          { "name": "permission_code", "type": "VARCHAR(100)", "key": "FK", "note": "→ gw.permission.code" },
+          { "name": "rate_limit_policy_id", "type": "INT", "key": "FK" },
+          { "name": "cache_ttl_sec", "type": "INT" },
+          { "name": "cache_scope", "type": "VARCHAR(10)", "note": "user / shared" },
+          { "name": "timeout_ms", "type": "INT" },
+          { "name": "max_body_kb", "type": "INT" },
+          { "name": "request_headers_add", "type": "NVARCHAR(MAX)", "note": "JSON" },
+          { "name": "response_headers_remove", "type": "NVARCHAR(MAX)", "note": "JSON" },
+          { "name": "mock_response", "type": "NVARCHAR(MAX)" },
+          { "name": "audit_level", "type": "VARCHAR(10)", "note": "none / meta / body" },
+          { "name": "priority", "type": "SMALLINT" },
+          { "name": "status", "type": "VARCHAR(12)", "note": "draft / published / disabled / deprecated" },
+          { "name": "deprecated_at", "type": "DATETIME2(3)" },
+          { "name": "version_tag", "type": "VARCHAR(20)" },
+          { "name": "tags", "type": "NVARCHAR(200)" },
+          { "name": "owner", "type": "NVARCHAR(64)" },
+          { "name": "source", "type": "VARCHAR(20)", "note": "manual / openapi / excel" },
+          { "name": "import_batch_id", "type": "INT", "key": "FK" },
+          { "name": "description", "type": "NVARCHAR(1000)" },
+          { "name": "gherkin", "type": "NVARCHAR(MAX)", "note": "x-gherkin 行為規格" }
+        ]
+      },
+      {
+        "id": "gw.aggregate_step", "store": "gw", "group": "api", "status": "active", "audit": true,
+        "description": "聚合路由的步驟;相同 step_order 並行",
+        "columns": [
+          { "name": "step_id", "type": "INT", "key": "PK" },
+          { "name": "route_id", "type": "INT", "key": "FK" },
+          { "name": "step_key", "type": "VARCHAR(50)", "note": "UQ(route_id, step_key)" },
+          { "name": "step_order", "type": "SMALLINT" },
+          { "name": "upstream_id", "type": "INT", "key": "FK" },
+          { "name": "method", "type": "VARCHAR(10)" },
+          { "name": "path_template", "type": "VARCHAR(300)" },
+          { "name": "required", "type": "BIT" },
+          { "name": "timeout_ms", "type": "INT" },
+          { "name": "permission_code", "type": "VARCHAR(100)", "key": "FK" },
+          { "name": "transform", "type": "NVARCHAR(MAX)", "note": "JSONata" }
+        ]
+      },
+      {
+        "id": "gw.rate_limit_policy", "store": "gw", "group": "api", "status": "active", "audit": true,
+        "description": "限流政策",
+        "columns": [
+          { "name": "policy_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(50)", "key": "UQ" },
+          { "name": "limit_count", "type": "INT" },
+          { "name": "window_sec", "type": "INT" },
+          { "name": "key_by", "type": "VARCHAR(20)", "note": "user / ip / client / route" },
+          { "name": "burst", "type": "INT" }
+        ]
+      },
+      {
+        "id": "gw.config_release", "store": "gw", "group": "api", "status": "active",
+        "description": "發佈版本(release_id 即版本號,回滾也產生新版本)",
+        "columns": [
+          { "name": "release_id", "type": "INT", "key": "PK" },
+          { "name": "snapshot", "type": "NVARCHAR(MAX)", "note": "路由 / 上游 / 政策完整 JSON" },
+          { "name": "diff_summary", "type": "NVARCHAR(MAX)" },
+          { "name": "note", "type": "NVARCHAR(500)" },
+          { "name": "published_by", "type": "NVARCHAR(64)" },
+          { "name": "published_at", "type": "DATETIME2(3)" },
+          { "name": "rolled_back_from", "type": "INT" },
+          { "name": "created_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.api_import_batch", "store": "gw", "group": "api", "status": "active", "audit": true,
+        "description": "OpenAPI / Excel 匯入批次",
+        "columns": [
+          { "name": "batch_id", "type": "INT", "key": "PK" },
+          { "name": "source_type", "type": "VARCHAR(10)", "note": "openapi / excel / csv" },
+          { "name": "file_name", "type": "NVARCHAR(260)" },
+          { "name": "file_hash", "type": "CHAR(64)" },
+          { "name": "upstream_id", "type": "INT", "key": "FK" },
+          { "name": "status", "type": "VARCHAR(12)", "note": "parsed / committed / failed / cancelled" },
+          { "name": "total", "type": "INT" },
+          { "name": "created", "type": "INT" },
+          { "name": "updated", "type": "INT" },
+          { "name": "skipped", "type": "INT" },
+          { "name": "errors", "type": "INT" }
+        ]
+      },
+      {
+        "id": "gw.api_import_item", "store": "gw", "group": "api", "status": "active",
+        "description": "匯入明細",
+        "columns": [
+          { "name": "item_id", "type": "INT", "key": "PK" },
+          { "name": "batch_id", "type": "INT", "key": "FK" },
+          { "name": "row_no", "type": "INT" },
+          { "name": "route_code", "type": "VARCHAR(100)" },
+          { "name": "action", "type": "VARCHAR(10)", "note": "create / update / unchanged / error" },
+          { "name": "payload", "type": "NVARCHAR(MAX)" },
+          { "name": "error_message", "type": "NVARCHAR(1000)" }
+        ]
+      },
+      {
+        "id": "gw.user", "store": "gw", "group": "identity", "status": "active", "audit": true,
+        "description": "使用者(AD 帳號 + BPM / LOS 人事快取);一名員工一筆,不歸戶",
+        "columns": [
+          { "name": "user_id", "type": "INT", "key": "PK" },
+          { "name": "employee_no", "type": "VARCHAR(20)", "key": "UQ", "note": "工號(去空白、轉大寫)" },
+          { "name": "is_virtual", "type": "BIT", "note": "兼任帳號,不可登入" },
+          { "name": "base_employee_no", "type": "VARCHAR(20)" },
+          { "name": "auth_type", "type": "VARCHAR(10)", "note": "ad / local" },
+          { "name": "ad_object_guid", "type": "UNIQUEIDENTIFIER", "key": "UQ", "note": "篩選唯一 WHERE NOT NULL" },
+          { "name": "ad_domain", "type": "VARCHAR(30)" },
+          { "name": "upn", "type": "VARCHAR(128)" },
+          { "name": "display_name", "type": "NVARCHAR(100)", "note": "BPM > LOS > AD" },
+          { "name": "email", "type": "VARCHAR(128)" },
+          { "name": "dept_code", "type": "VARCHAR(30)" },
+          { "name": "department", "type": "NVARCHAR(100)" },
+          { "name": "org_name", "type": "NVARCHAR(100)" },
+          { "name": "title", "type": "NVARCHAR(100)" },
+          { "name": "job_level", "type": "VARCHAR(10)" },
+          { "name": "manager_employee_no", "type": "VARCHAR(20)" },
+          { "name": "employment_status", "type": "VARCHAR(10)", "note": "active / resigned / suspended" },
+          { "name": "profile_source", "type": "VARCHAR(10)", "note": "bpm / los / bpm+los / ad_only" },
+          { "name": "profile_hash", "type": "CHAR(64)" },
+          { "name": "profile_synced_at", "type": "DATETIME2(3)" },
+          { "name": "ad_groups", "type": "NVARCHAR(MAX)", "note": "JSON" },
+          { "name": "notify_pref", "type": "NVARCHAR(200)" },
+          { "name": "perm_version", "type": "INT", "note": "pv;權限相關變更 +1" },
+          { "name": "is_disabled", "type": "BIT" },
+          { "name": "last_login_at", "type": "DATETIME2(3)" },
+          { "name": "last_login_ip", "type": "VARCHAR(45)" }
+        ]
+      },
+      {
+        "id": "gw.role", "store": "gw", "group": "identity", "status": "active", "audit": true,
+        "description": "角色",
+        "columns": [
+          { "name": "role_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(50)", "key": "UQ" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "description", "type": "NVARCHAR(500)" },
+          { "name": "is_system", "type": "BIT", "note": "內建不可刪" }
+        ]
+      },
+      {
+        "id": "gw.permission", "store": "gw", "group": "identity", "status": "active", "audit": true,
+        "description": "權限;代碼 {system}.{resource}.{action}。v0.7 以 kind 分五類:app / menu / tab / button / api(按鈕權限 = API 權限)",
+        "columns": [
+          { "name": "permission_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(100)", "key": "UQ", "note": "如 mes.workorder.read" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "system_code", "type": "VARCHAR(30)" },
+          { "name": "resource", "type": "VARCHAR(50)" },
+          { "name": "action", "type": "VARCHAR(30)" },
+          { "name": "description", "type": "NVARCHAR(500)" },
+          { "name": "kind", "type": "VARCHAR(10)", "status": "planned", "note": "app / menu / tab / button / api,預設 api" },
+          { "name": "parent_code", "type": "VARCHAR(100)", "status": "planned", "note": "上層權限代碼" },
+          { "name": "sort", "type": "SMALLINT", "status": "planned" }
+        ]
+      },
+      {
+        "id": "gw.role_permission", "store": "gw", "group": "identity", "status": "active",
+        "description": "角色 ↔ 權限",
+        "columns": [
+          { "name": "role_id", "type": "INT", "key": "PK,FK" },
+          { "name": "permission_id", "type": "INT", "key": "PK,FK" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "gw.role_ad_group", "store": "gw", "group": "identity", "status": "active",
+        "description": "AD 群組 → 角色",
+        "columns": [
+          { "name": "role_id", "type": "INT", "key": "PK,FK" },
+          { "name": "ad_group_dn", "type": "NVARCHAR(400)", "key": "PK" },
+          { "name": "ad_group_guid", "type": "UNIQUEIDENTIFIER" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "gw.user_role", "store": "gw", "group": "identity", "status": "active",
+        "description": "個別指派角色(可到期)",
+        "columns": [
+          { "name": "user_id", "type": "INT", "key": "PK,FK" },
+          { "name": "role_id", "type": "INT", "key": "PK,FK" },
+          { "name": "valid_from", "type": "DATETIME2(3)" },
+          { "name": "valid_to", "type": "DATETIME2(3)" },
+          { "name": "reason", "type": "NVARCHAR(200)" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "gw.api_client", "store": "gw", "group": "identity", "status": "active", "audit": true,
+        "description": "系統對系統 API Key",
+        "columns": [
+          { "name": "client_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(50)", "key": "UQ" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "key_prefix", "type": "CHAR(8)", "key": "UQ" },
+          { "name": "key_hash", "type": "VARCHAR(200)", "note": "Argon2id" },
+          { "name": "allowed_ips", "type": "VARCHAR(500)" },
+          { "name": "expires_at", "type": "DATETIME2(3)" },
+          { "name": "is_enabled", "type": "BIT" },
+          { "name": "last_used_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.api_client_permission", "store": "gw", "group": "identity", "status": "active",
+        "description": "API Key 可用權限範圍",
+        "columns": [
+          { "name": "client_id", "type": "INT", "key": "PK,FK" },
+          { "name": "permission_id", "type": "INT", "key": "PK,FK" }
+        ]
+      },
+      {
+        "id": "gw.company", "store": "gw", "group": "company", "status": "active", "audit": true,
+        "description": "公司清單;歸屬以 LOS CompName 為準",
+        "columns": [
+          { "name": "company_id", "type": "INT", "key": "PK" },
+          { "name": "comp_name", "type": "NVARCHAR(20)", "key": "UQ", "note": "碩禾、禾迅…" },
+          { "name": "comp_full_name", "type": "NVARCHAR(100)" },
+          { "name": "comp_db", "type": "VARCHAR(20)", "note": "ERP 資料庫代碼" },
+          { "name": "bpm_org_oid", "type": "VARCHAR(50)" },
+          { "name": "emp_prefix", "type": "VARCHAR(5)" },
+          { "name": "is_enabled", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.company_ad_domain", "store": "gw", "group": "company", "status": "active",
+        "description": "公司可用 AD 網域與嘗試順序;無資料 = 無網域,需本機帳號",
+        "columns": [
+          { "name": "company_id", "type": "INT", "key": "PK,FK" },
+          { "name": "domain_code", "type": "VARCHAR(30)", "key": "PK", "note": "gsc / gsmc / ygdmc" },
+          { "name": "try_order", "type": "SMALLINT" }
+        ]
+      },
+      {
+        "id": "gw.user_company", "store": "gw", "group": "company", "status": "active",
+        "description": "使用者所屬公司與部門(含兼任)",
+        "columns": [
+          { "name": "user_id", "type": "INT", "key": "PK,FK" },
+          { "name": "company_id", "type": "INT", "key": "PK,FK" },
+          { "name": "via_employee_no", "type": "VARCHAR(20)", "key": "PK" },
+          { "name": "dept_code", "type": "VARCHAR(30)" },
+          { "name": "department", "type": "NVARCHAR(100)" },
+          { "name": "is_virtual", "type": "BIT" },
+          { "name": "is_primary", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.role_company", "store": "gw", "group": "company", "status": "active",
+        "description": "公司 → 預設角色",
+        "columns": [
+          { "name": "role_id", "type": "INT", "key": "PK,FK" },
+          { "name": "company_id", "type": "INT", "key": "PK,FK" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "gw.local_credential", "store": "gw", "group": "company", "status": "active", "audit": true,
+        "description": "本機帳號密碼(一人最多一組)",
+        "columns": [
+          { "name": "user_id", "type": "INT", "key": "PK,FK" },
+          { "name": "password_hash", "type": "VARCHAR(200)", "note": "Argon2id" },
+          { "name": "status", "type": "VARCHAR(20)", "note": "pending_verify / pending_approval / active / locked / disabled" },
+          { "name": "failed_count", "type": "SMALLINT" },
+          { "name": "locked_at", "type": "DATETIME2(3)" },
+          { "name": "must_change_password", "type": "BIT" },
+          { "name": "password_changed_at", "type": "DATETIME2(3)" },
+          { "name": "password_history", "type": "NVARCHAR(1000)" },
+          { "name": "registered_via", "type": "VARCHAR(20)", "note": "self_email / self_jobdate / self_approved / admin / legacy_portal" },
+          { "name": "legacy_migrated_at", "type": "DATETIME2(3)" },
+          { "name": "approved_by", "type": "NVARCHAR(64)" },
+          { "name": "approved_at", "type": "DATETIME2(3)" },
+          { "name": "manager_notified_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.local_account_token", "store": "gw", "group": "company", "status": "active",
+        "description": "驗證 / 啟用 / 重設連結(只存 SHA-256)",
+        "columns": [
+          { "name": "token_id", "type": "INT", "key": "PK" },
+          { "name": "user_id", "type": "INT", "key": "FK" },
+          { "name": "purpose", "type": "VARCHAR(20)", "note": "verify_email / activate / reset_password" },
+          { "name": "token_hash", "type": "CHAR(64)", "key": "UQ" },
+          { "name": "expires_at", "type": "DATETIME2(3)" },
+          { "name": "used_at", "type": "DATETIME2(3)" },
+          { "name": "created_ip", "type": "VARCHAR(45)" },
+          { "name": "created_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.role_rule", "store": "gw", "group": "rule", "status": "planned", "audit": true,
+        "description": "依人事欄位指派角色:規則內條件 AND、同角色多規則 OR,NULL = 不限",
+        "columns": [
+          { "name": "rule_id", "type": "INT", "key": "PK" },
+          { "name": "role_id", "type": "INT", "key": "FK" },
+          { "name": "company_id", "type": "INT", "key": "FK" },
+          { "name": "dept_code", "type": "VARCHAR(30)" },
+          { "name": "include_sub_depts", "type": "BIT" },
+          { "name": "job_levels", "type": "NVARCHAR(200)", "note": "JSON 陣列" },
+          { "name": "title", "type": "NVARCHAR(100)" },
+          { "name": "description", "type": "NVARCHAR(200)" },
+          { "name": "is_enabled", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.department", "store": "gw", "group": "rule", "status": "planned",
+        "description": "部門樹(BPM OrganizationUnit 同步)",
+        "columns": [
+          { "name": "dept_code", "type": "VARCHAR(30)", "key": "PK" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "parent_dept_code", "type": "VARCHAR(30)", "key": "FK" },
+          { "name": "company_id", "type": "INT", "key": "FK" },
+          { "name": "bpm_unit_oid", "type": "VARCHAR(50)" },
+          { "name": "is_enabled", "type": "BIT" },
+          { "name": "synced_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.app", "store": "gw", "group": "rule", "status": "planned", "audit": true,
+        "description": "應用登記;/api/auth/me 的 apps 依此與使用者權限過濾",
+        "columns": [
+          { "name": "app_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(30)", "key": "UQ", "note": "portal、it" },
+          { "name": "name", "type": "NVARCHAR(50)" },
+          { "name": "base_path", "type": "VARCHAR(100)", "note": "/、/it/" },
+          { "name": "icon", "type": "VARCHAR(30)" },
+          { "name": "sort", "type": "SMALLINT" },
+          { "name": "permission_code", "type": "VARCHAR(100)", "key": "FK", "note": "kind = app" },
+          { "name": "is_enabled", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.notify_template", "store": "gw", "group": "notify", "status": "active", "audit": true,
+        "description": "通知範本(LINE 欄位暫緩)",
+        "columns": [
+          { "name": "template_id", "type": "INT", "key": "PK" },
+          { "name": "code", "type": "VARCHAR(50)", "key": "UQ" },
+          { "name": "name", "type": "NVARCHAR(100)" },
+          { "name": "channels", "type": "NVARCHAR(200)", "note": "JSON" },
+          { "name": "email_subject", "type": "NVARCHAR(200)" },
+          { "name": "email_body", "type": "NVARCHAR(MAX)" },
+          { "name": "inapp_body", "type": "NVARCHAR(2000)" },
+          { "name": "is_enabled", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.notify_log", "store": "gw", "group": "notify", "status": "active",
+        "description": "通知發送紀錄",
+        "columns": [
+          { "name": "log_id", "type": "BIGINT", "key": "PK" },
+          { "name": "template_code", "type": "VARCHAR(50)" },
+          { "name": "channel", "type": "VARCHAR(10)" },
+          { "name": "recipient_user_id", "type": "INT" },
+          { "name": "recipient_address", "type": "NVARCHAR(200)" },
+          { "name": "status", "type": "VARCHAR(10)", "note": "queued / sent / failed / dead" },
+          { "name": "retry_count", "type": "SMALLINT" },
+          { "name": "provider_msg_id", "type": "VARCHAR(200)" },
+          { "name": "error_message", "type": "NVARCHAR(2000)" },
+          { "name": "idempotency_key", "type": "VARCHAR(100)" },
+          { "name": "requested_by", "type": "NVARCHAR(64)" },
+          { "name": "queued_at", "type": "DATETIME2(3)" },
+          { "name": "sent_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.notify_message", "store": "gw", "group": "notify", "status": "active",
+        "description": "站內通知",
+        "columns": [
+          { "name": "message_id", "type": "BIGINT", "key": "PK" },
+          { "name": "user_id", "type": "INT", "key": "FK" },
+          { "name": "title", "type": "NVARCHAR(200)" },
+          { "name": "body", "type": "NVARCHAR(2000)" },
+          { "name": "link_url", "type": "VARCHAR(500)" },
+          { "name": "is_read", "type": "BIT" },
+          { "name": "read_at", "type": "DATETIME2(3)" },
+          { "name": "created_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.webhook_endpoint", "store": "gw", "group": "notify", "status": "active", "audit": true,
+        "description": "Webhook 來源設定(本階段僅 bpm)",
+        "columns": [
+          { "name": "endpoint_id", "type": "INT", "key": "PK" },
+          { "name": "source_code", "type": "VARCHAR(30)", "key": "UQ" },
+          { "name": "verify_method", "type": "VARCHAR(20)", "note": "hmac_sha256 / none" },
+          { "name": "secret_ref", "type": "VARCHAR(100)", "note": "只存參照,實值在 Docker secret" },
+          { "name": "signature_header", "type": "VARCHAR(100)" },
+          { "name": "allowed_ips", "type": "VARCHAR(500)" },
+          { "name": "dispatch_type", "type": "VARCHAR(10)", "note": "route / queue / handler" },
+          { "name": "dispatch_target", "type": "VARCHAR(200)" },
+          { "name": "is_enabled", "type": "BIT" }
+        ]
+      },
+      {
+        "id": "gw.webhook_log", "store": "gw", "group": "notify", "status": "active",
+        "description": "Webhook 接收紀錄",
+        "columns": [
+          { "name": "log_id", "type": "BIGINT", "key": "PK" },
+          { "name": "endpoint_id", "type": "INT", "key": "FK" },
+          { "name": "request_id", "type": "VARCHAR(64)" },
+          { "name": "idempotency_key", "type": "VARCHAR(100)" },
+          { "name": "remote_ip", "type": "VARCHAR(45)" },
+          { "name": "verified", "type": "BIT" },
+          { "name": "status_code", "type": "SMALLINT" },
+          { "name": "payload", "type": "NVARCHAR(MAX)" },
+          { "name": "received_at", "type": "DATETIME2(3)" },
+          { "name": "processed_at", "type": "DATETIME2(3)" },
+          { "name": "error_message", "type": "NVARCHAR(2000)" }
+        ]
+      },
+      {
+        "id": "gw.audit_log", "store": "gw", "group": "audit", "status": "active",
+        "description": "管理操作稽核;只新增不可修改(DENY UPDATE, DELETE),保存 3 年;叢集索引 occurred_at",
+        "columns": [
+          { "name": "audit_id", "type": "BIGINT", "key": "PK" },
+          { "name": "occurred_at", "type": "DATETIME2(3)" },
+          { "name": "actor_user_id", "type": "INT" },
+          { "name": "actor_name", "type": "NVARCHAR(100)" },
+          { "name": "actor_ip", "type": "VARCHAR(45)" },
+          { "name": "action", "type": "VARCHAR(60)", "note": "route.create、release.publish…" },
+          { "name": "entity_type", "type": "VARCHAR(40)" },
+          { "name": "entity_id", "type": "VARCHAR(100)" },
+          { "name": "before_json", "type": "NVARCHAR(MAX)" },
+          { "name": "after_json", "type": "NVARCHAR(MAX)" },
+          { "name": "request_id", "type": "VARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "gw.auth_log", "store": "gw", "group": "audit", "status": "active",
+        "description": "登入 / 註冊 / 密碼事件,保存 1 年",
+        "columns": [
+          { "name": "log_id", "type": "BIGINT", "key": "PK" },
+          { "name": "occurred_at", "type": "DATETIME2(3)" },
+          { "name": "username", "type": "NVARCHAR(128)" },
+          { "name": "user_id", "type": "INT" },
+          { "name": "auth_method", "type": "VARCHAR(10)", "note": "ad / local" },
+          { "name": "event", "type": "VARCHAR(30)", "note": "login_success / login_fail / logout / …" },
+          { "name": "reason", "type": "NVARCHAR(200)" },
+          { "name": "ip", "type": "VARCHAR(45)" },
+          { "name": "user_agent", "type": "NVARCHAR(400)" }
+        ]
+      },
+      {
+        "id": "gw.api_access_log", "store": "gw", "group": "audit", "status": "active",
+        "description": "(選用)audit_level ≥ meta 的路由存取紀錄,保存 180 天",
+        "columns": [
+          { "name": "log_id", "type": "BIGINT", "key": "PK" },
+          { "name": "occurred_at", "type": "DATETIME2(3)" },
+          { "name": "request_id", "type": "VARCHAR(64)" },
+          { "name": "route_code", "type": "VARCHAR(100)" },
+          { "name": "user_id", "type": "INT" },
+          { "name": "client_id", "type": "INT" },
+          { "name": "method", "type": "VARCHAR(10)" },
+          { "name": "path", "type": "NVARCHAR(1000)" },
+          { "name": "status", "type": "SMALLINT" },
+          { "name": "duration_ms", "type": "INT" },
+          { "name": "body", "type": "NVARCHAR(MAX)" }
+        ]
+      },
+      {
+        "id": "gw.employee_sync_run", "store": "gw", "group": "audit", "status": "active",
+        "description": "人員同步執行紀錄,保存 1 年",
+        "columns": [
+          { "name": "run_id", "type": "INT", "key": "PK" },
+          { "name": "trigger_type", "type": "VARCHAR(10)", "note": "schedule / manual / login" },
+          { "name": "started_at", "type": "DATETIME2(3)" },
+          { "name": "finished_at", "type": "DATETIME2(3)" },
+          { "name": "status", "type": "VARCHAR(12)", "note": "success / partial / aborted / failed" },
+          { "name": "bpm_rows", "type": "INT" },
+          { "name": "los_rows", "type": "INT" },
+          { "name": "created", "type": "INT" },
+          { "name": "updated", "type": "INT" },
+          { "name": "unchanged", "type": "INT" },
+          { "name": "resigned_flagged", "type": "INT" },
+          { "name": "error_message", "type": "NVARCHAR(2000)" },
+          { "name": "triggered_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "bpm.vw_gn_employee", "store": "bpm", "group": "external", "status": "active",
+        "description": "BPM 人員唯讀 view(暫定欄位,待 BPM 負責人確認)",
+        "columns": [
+          { "name": "employee_no", "type": "NVARCHAR(50)", "key": "PK" },
+          { "name": "display_name", "type": "NVARCHAR(100)" },
+          { "name": "email", "type": "NVARCHAR(200)" },
+          { "name": "dept_code", "type": "NVARCHAR(50)" },
+          { "name": "department", "type": "NVARCHAR(100)" },
+          { "name": "org_name", "type": "NVARCHAR(100)" },
+          { "name": "title", "type": "NVARCHAR(100)" },
+          { "name": "job_level", "type": "NVARCHAR(10)" },
+          { "name": "manager_employee_no", "type": "NVARCHAR(50)" },
+          { "name": "leave_date", "type": "DATETIME" }
+        ]
+      },
+      {
+        "id": "los.vw_gn_employee", "store": "los", "group": "external", "status": "active",
+        "description": "LOS EmployeeInfo 唯讀 view(不含個資欄位;日期為 d/M/yyyy 字串)",
+        "columns": [
+          { "name": "UserID", "type": "NVARCHAR(20)", "key": "PK" },
+          { "name": "UserName", "type": "NVARCHAR(50)" },
+          { "name": "EMail", "type": "NVARCHAR(100)" },
+          { "name": "CompName", "type": "NVARCHAR(20)" },
+          { "name": "CompFullName", "type": "NVARCHAR(100)" },
+          { "name": "CompDB", "type": "NVARCHAR(20)" },
+          { "name": "EFDept", "type": "NVARCHAR(30)" },
+          { "name": "EFDeptName", "type": "NVARCHAR(100)" },
+          { "name": "JobName", "type": "NVARCHAR(50)" },
+          { "name": "JobLevel", "type": "NVARCHAR(10)" },
+          { "name": "BossID", "type": "NVARCHAR(20)" },
+          { "name": "BossEMail", "type": "NVARCHAR(100)" },
+          { "name": "JobDate", "type": "NVARCHAR(10)" },
+          { "name": "LeaveDate", "type": "NVARCHAR(10)" },
+          { "name": "IsVUser", "type": "BIT", "note": "兼任帳號" }
+        ]
+      },
+      {
+        "id": "portalsolar.vw_gn_login_data", "store": "portalsolar", "group": "external", "status": "active",
+        "description": "舊單一入口帳號唯讀 view;PNum 只用來比對,不寫入 giganexus_gw",
+        "columns": [
+          { "name": "PID", "type": "NVARCHAR(50)", "key": "PK", "note": "工號" },
+          { "name": "PNum", "type": "NVARCHAR(50)", "note": "舊密碼密文" },
+          { "name": "CName", "type": "NVARCHAR(50)" },
+          { "name": "Certify", "type": "NVARCHAR(50)" }
+        ]
+      }
+    ],
+    "relations": [
+      { "from": "gw.upstream", "to": "gw.upstream_target", "card": "1:N", "column": "upstream_id", "label": "has" },
+      { "from": "gw.upstream", "to": "gw.api_route", "card": "1:N", "column": "upstream_id", "label": "serves" },
+      { "from": "gw.upstream", "to": "gw.aggregate_step", "card": "1:N", "column": "upstream_id", "label": "calls" },
+      { "from": "gw.upstream", "to": "gw.api_import_batch", "card": "1:N", "column": "upstream_id", "label": "import for" },
+      { "from": "gw.api_route", "to": "gw.aggregate_step", "card": "1:N", "column": "route_id", "label": "composes" },
+      { "from": "gw.permission", "to": "gw.api_route", "card": "1:N", "column": "permission_code", "label": "guards" },
+      { "from": "gw.permission", "to": "gw.aggregate_step", "card": "1:N", "column": "permission_code", "label": "step guard" },
+      { "from": "gw.rate_limit_policy", "to": "gw.api_route", "card": "1:N", "column": "rate_limit_policy_id", "label": "limits" },
+      { "from": "gw.api_import_batch", "to": "gw.api_import_item", "card": "1:N", "column": "batch_id", "label": "contains" },
+      { "from": "gw.api_import_batch", "to": "gw.api_route", "card": "1:N", "column": "import_batch_id", "label": "imported" },
+      { "from": "gw.config_release", "to": "gw.api_route", "card": "1:N", "fk": false, "label": "snapshots" },
+      { "from": "gw.role", "to": "gw.role_permission", "card": "1:N", "column": "role_id", "label": "grants" },
+      { "from": "gw.permission", "to": "gw.role_permission", "card": "1:N", "column": "permission_id", "label": "in" },
+      { "from": "gw.role", "to": "gw.role_ad_group", "card": "1:N", "column": "role_id", "label": "mapped_from" },
+      { "from": "gw.role", "to": "gw.user_role", "card": "1:N", "column": "role_id", "label": "assigned" },
+      { "from": "gw.user", "to": "gw.user_role", "card": "1:N", "column": "user_id", "label": "has" },
+      { "from": "gw.api_client", "to": "gw.api_client_permission", "card": "1:N", "column": "client_id", "label": "scoped" },
+      { "from": "gw.permission", "to": "gw.api_client_permission", "card": "1:N", "column": "permission_id", "label": "in" },
+      { "from": "gw.company", "to": "gw.company_ad_domain", "card": "1:N", "column": "company_id", "label": "uses" },
+      { "from": "gw.user", "to": "gw.user_company", "card": "1:N", "column": "user_id", "label": "belongs" },
+      { "from": "gw.company", "to": "gw.user_company", "card": "1:N", "column": "company_id", "label": "has" },
+      { "from": "gw.role", "to": "gw.role_company", "card": "1:N", "column": "role_id", "label": "mapped_from" },
+      { "from": "gw.company", "to": "gw.role_company", "card": "1:N", "column": "company_id", "label": "grants" },
+      { "from": "gw.user", "to": "gw.local_credential", "card": "1:0..1", "column": "user_id", "label": "local login" },
+      { "from": "gw.user", "to": "gw.local_account_token", "card": "1:N", "column": "user_id", "label": "issues" },
+      { "from": "gw.role", "to": "gw.role_rule", "card": "1:N", "column": "role_id", "label": "matched_by", "status": "planned" },
+      { "from": "gw.company", "to": "gw.role_rule", "card": "1:N", "column": "company_id", "label": "condition", "status": "planned" },
+      { "from": "gw.department", "to": "gw.department", "card": "1:N", "column": "parent_dept_code", "label": "parent_of", "status": "planned" },
+      { "from": "gw.company", "to": "gw.department", "card": "1:N", "column": "company_id", "label": "owns", "status": "planned" },
+      { "from": "gw.permission", "to": "gw.permission", "card": "1:N", "column": "parent_code", "label": "parent_of", "status": "planned" },
+      { "from": "gw.permission", "to": "gw.app", "card": "1:N", "column": "permission_code", "label": "grants_access", "status": "planned" },
+      { "from": "gw.user", "to": "gw.notify_message", "card": "1:N", "column": "user_id", "label": "receives" },
+      { "from": "gw.notify_template", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "template_code", "label": "renders" },
+      { "from": "gw.user", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "recipient_user_id", "label": "recipient" },
+      { "from": "gw.webhook_endpoint", "to": "gw.webhook_log", "card": "1:N", "column": "endpoint_id", "label": "receives" },
+      { "from": "gw.user", "to": "gw.auth_log", "card": "1:N", "fk": false, "column": "user_id", "label": "events" },
+      { "from": "gw.user", "to": "gw.audit_log", "card": "1:N", "fk": false, "column": "actor_user_id", "label": "acts" },
+      { "from": "gw.api_route", "to": "gw.api_access_log", "card": "1:N", "fk": false, "column": "route_code", "label": "access" },
+      { "from": "bpm.vw_gn_employee", "to": "gw.user", "card": "1:0..1", "fk": false, "column": "employee_no", "label": "同步(主)" },
+      { "from": "los.vw_gn_employee", "to": "gw.user", "card": "1:0..1", "fk": false, "column": "UserID = employee_no", "label": "同步(補充)" },
+      { "from": "los.vw_gn_employee", "to": "gw.company", "card": "N:1", "fk": false, "column": "CompName = comp_name", "label": "公司歸屬" },
+      { "from": "portalsolar.vw_gn_login_data", "to": "gw.local_credential", "card": "1:0..1", "fk": false, "column": "PID = employee_no", "label": "首次登入遷移" }
+    ],
+    "redisKeys": [
+      { "key": "gw:routes:version", "type": "String", "ttl": "—", "purpose": "目前發佈版本號" },
+      { "key": "gw:routes:snapshot", "type": "String(JSON)", "ttl": "—", "purpose": "目前發佈的完整路由快照" },
+      { "key": "gw:config:changed", "type": "Pub/Sub", "ttl": "—", "purpose": "通知所有 BFF 重載" },
+      { "key": "gw:perm:{userId}:{pv}", "type": "Set", "ttl": "15 分", "purpose": "使用者有效權限代碼集合" },
+      { "key": "gw:rt:{familyId}", "type": "Hash", "ttl": "8h / 7d", "purpose": "Refresh Token 家族" },
+      { "key": "gw:user:rt:{userId}", "type": "Set", "ttl": "同上", "purpose": "使用者所有 RT 家族(強制登出)" },
+      { "key": "gw:deny:{jti}", "type": "String", "ttl": "AT 剩餘效期", "purpose": "已撤銷 Access Token" },
+      { "key": "gw:login:fail:{user} / gw:login:fail:ip:{ip}", "type": "Counter", "ttl": "15 分", "purpose": "登入失敗限流" },
+      { "key": "gw:rl:{policy}:{key}", "type": "Sorted Set", "ttl": "視窗秒數", "purpose": "滑動視窗限流" },
+      { "key": "gw:cache:{routeCode}:{hash}", "type": "String", "ttl": "cache_ttl_sec", "purpose": "GET 回應快取" },
+      { "key": "gw:cb:{upstreamCode}", "type": "Hash", "ttl": "30 秒", "purpose": "斷路器狀態" },
+      { "key": "gw:client:{keyPrefix}", "type": "Hash", "ttl": "5 分", "purpose": "API Key 快取" },
+      { "key": "gw:idem:{source}:{key}", "type": "String", "ttl": "24h", "purpose": "Webhook / 通知去重" },
+      { "key": "bull:notify:*", "type": "BullMQ", "ttl": "—", "purpose": "通知佇列" },
+      { "key": "bull:employee-sync:*", "type": "BullMQ", "ttl": "—", "purpose": "人員同步排程" },
+      { "key": "gw:lock:sync", "type": "String(NX PX)", "ttl": "30 秒", "purpose": "補償同步分散式鎖" },
+      { "key": "gw:pwchg:{tokenHash}", "type": "String", "ttl": "10 分", "purpose": "限定變更密碼憑證" },
+      { "key": "gw:reg:ip:{ip} / gw:reg:emp:{employeeNo}", "type": "Counter", "ttl": "1 小時", "purpose": "註冊與忘記密碼限流" }
+    ]
+  }
+}

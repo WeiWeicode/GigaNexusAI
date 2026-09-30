@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import { toPng } from 'html-to-image'
 import { usePlan } from './stores/plan'
 import { api } from './api'
@@ -12,6 +12,9 @@ import ReportSummary from './components/ReportSummary.vue'
 import WorkstreamDialog from './components/WorkstreamDialog.vue'
 import ConnectDialog from './components/ConnectDialog.vue'
 import Icon from './components/Icon.vue'
+
+// 架構圖(含 mermaid)只在報告模式切到「架構圖」時才載入
+const ArchitectureView = defineAsyncComponent(() => import('./components/arch/ArchitectureView.vue'))
 
 const store = usePlan()
 const gantt = ref<InstanceType<typeof GanttChart>>()
@@ -31,11 +34,23 @@ function toggleAll() {
   for (const w of store.workstreams) if (store.collapsed.includes(w.id) !== target) store.toggleCollapse(w.id)
 }
 
+// 報告模式分頁:進度(甘特圖 + 摘要)/ 架構圖;網址 #/arch… 直接開啟架構圖
+const reportView = ref<'progress' | 'arch'>(location.hash.startsWith('#/arch') ? 'arch' : 'progress')
+if (reportView.value === 'arch') store.reportMode = true
+const archShown = computed(() => store.reportMode && reportView.value === 'arch')
+
+function setReportView(v: 'progress' | 'arch') {
+  reportView.value = v
+  if (v === 'progress' && location.hash.startsWith('#/arch')) history.replaceState(null, '', location.pathname + location.search)
+}
+
 function toggleReport() {
   store.reportMode = !store.reportMode
   if (store.reportMode) {
     store.drawer = null
     showSummary.value = true
+  } else if (location.hash.startsWith('#/arch')) {
+    history.replaceState(null, '', location.pathname + location.search)
   }
 }
 
@@ -238,6 +253,10 @@ onBeforeUnmount(() => {
           </div>
           <input ref="fileInput" type="file" accept=".json,application/json" hidden @change="doImport" />
         </div>
+        <div v-if="store.reportMode" class="seg report-seg" role="group" aria-label="報告內容">
+          <button :class="{ on: reportView === 'progress' }" @click="setReportView('progress')">進度</button>
+          <button :class="{ on: reportView === 'arch' }" @click="setReportView('arch')">架構圖</button>
+        </div>
         <button class="btn" :class="{ primary: store.reportMode }" title="報告模式 (R)" @click="toggleReport">
           <Icon :name="store.reportMode ? 'edit' : 'present'" />{{ store.reportMode ? '回到編輯' : '報告模式' }}
         </button>
@@ -246,7 +265,7 @@ onBeforeUnmount(() => {
     </header>
 
     <!-- 工具列 -->
-    <div class="toolbar no-print">
+    <div v-if="!archShown" class="toolbar no-print">
       <div class="search">
         <Icon name="search" />
         <input v-model="store.search" class="input sm" placeholder="搜尋任務、負責人…" />
@@ -286,10 +305,15 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 報告摘要 -->
-    <ReportSummary v-if="store.reportMode && showSummary && store.loaded" />
+    <ReportSummary v-if="store.reportMode && showSummary && store.loaded && !archShown" />
+
+    <!-- 架構圖(報告模式) -->
+    <div v-if="archShown" class="main">
+      <ArchitectureView :theme="store.theme" />
+    </div>
 
     <!-- 甘特圖 -->
-    <main class="main">
+    <main v-else class="main">
       <div v-if="!store.loaded" class="state">
         <template v-if="store.loadError">
           <b>無法連線至 NexusPlan 服務</b>
@@ -484,6 +508,9 @@ onBeforeUnmount(() => {
   color: var(--c-text);
   font-weight: 600;
   box-shadow: var(--c-shadow-xs);
+}
+.report-seg button {
+  padding: 0 10px;
 }
 
 .main {

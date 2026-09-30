@@ -1,7 +1,10 @@
-# NexusPlan — GigaNexus AI 平台建置甘特圖
+# NexusPlan — GigaNexus AI 平台建置甘特圖與架構圖
 
 可編輯的甘特圖，追蹤 [PRD](docs/PRD.md) §8 的 7 大工作流（CI/CD → SSL → Gateway/BFF → IT 管理介面 → 員工入口網 → IT 端點 Agent → AI）。
 資料存在本機 SQLite（`data/nexusplan.db`），不連公司資料庫；同一區網的筆電可用 IP 連線做進度報告。
+
+> **只想看架構圖?** 雙擊 `start-architecture.cmd`,或 `npm install` → `npm run arch`(http://localhost:5191)。
+> 只顯示架構圖,不顯示專案進度、不能編輯,也不需要資料庫。詳見下方「架構圖」。
 
 ## 快速開始
 
@@ -51,7 +54,7 @@ npm run dev
 | 連動順延 | 移動前置任務造成重疊時，底部提示「一併順延」 |
 | 復原 / 重做 | Ctrl+Z / Ctrl+Y |
 | 捲到今天 | T |
-| 報告模式 | R（全螢幕 F）：整體 / 各工作流完成度、延遲、里程碑、本期更新 |
+| 報告模式 | R（全螢幕 F）：整體 / 各工作流完成度、延遲、里程碑、本期更新；頂列切換「架構圖」 |
 | 匯出 | PNG、列印 / PDF、CSV（Excel）、JSON 完整備份；JSON 匯入 |
 
 ### 延遲判定
@@ -81,6 +84,8 @@ src/           Vue 3 + TypeScript 前端
   components/  GanttChart、TaskDrawer、ReportSummary、ConnectDialog…
   stores/      Pinia（狀態、復原/重做、同步）
   utils/       日期、進度 / 延遲計算
-scripts/       防火牆設定
+architecture/  架構圖資料(workspace.json、projects/<專案>.json、README 格式說明)
+src/arch/      架構圖資料載入與 Mermaid 產生器;components/arch/ 架構圖頁面
+scripts/       防火牆設定、架構資料檢查(check-architecture.mjs)
 docs/PRD.md    產品需求文件
 ```
