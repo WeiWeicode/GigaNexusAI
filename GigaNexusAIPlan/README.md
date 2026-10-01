@@ -1,6 +1,6 @@
 # NexusPlan — GigaNexus AI 平台建置甘特圖與架構圖
 
-可編輯的甘特圖，追蹤 [PRD](docs/PRD.md) §8 的 7 大工作流（CI/CD → SSL → Gateway/BFF → IT 管理介面 → 員工入口網 → IT 端點 Agent → AI）。
+可編輯的甘特圖，追蹤 [PRD](docs/PRD.md) §8 的 8 大工作流（CI/CD → SSL → Gateway/BFF → IT 管理介面 → 員工入口網 → IT 端點 Agent（Rust + WebSocket）→ AI → 整合舊有服務）。**時程以甘特圖為準**，文件不另列日期。
 資料存在本機 SQLite（`data/nexusplan.db`），不連公司資料庫；同一區網的筆電可用 IP 連線做進度報告。
 
 > **只想看架構圖?** 雙擊 `start-architecture.cmd`,或 `npm install` → `npm run arch`(http://localhost:5191)。
@@ -79,7 +79,7 @@ npm run dev
 
 ```
 server/        Fastify 服務（API + 靜態頁面）、SQLite 資料層
-seed/          初始計畫（PRD §8）
+seed/          初始計畫（由甘特圖匯出，PRD §8）
 src/           Vue 3 + TypeScript 前端
   components/  GanttChart、TaskDrawer、ReportSummary、ConnectDialog…
   stores/      Pinia（狀態、復原/重做、同步）

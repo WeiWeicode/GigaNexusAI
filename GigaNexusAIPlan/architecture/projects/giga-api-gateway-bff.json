@@ -24,12 +24,12 @@
     ],
     "components": [
       { "id": "browser", "name": "瀏覽器 SPA", "layer": "client", "type": "client", "status": "active", "description": "giga-Portal、GigaItApp 等前端,以 httpOnly Cookie 呼叫 /api/*" },
-      { "id": "agent", "name": "端點 Agent / Watchdog", "layer": "client", "type": "client", "status": "planned", "description": "200+ 台 Windows,裝置憑證 mTLS" },
+      { "id": "agent", "name": "端點 Agent / Watchdog", "layer": "client", "type": "client", "status": "planned", "description": "RustIt Rust Agent / Watchdog,200+ 台 Windows,裝置憑證 mTLS;HTTPS 回報、WebSocket 接收指令" },
       { "id": "downstream-client", "name": "下游後端(系統對系統)", "layer": "client", "type": "client", "status": "active", "description": "以 X-Api-Key 呼叫 /api/{system}/*(ARCHITECTURE T9);啟動時以 SDK 自動註冊" },
       { "id": "cli", "name": "管理 CLI", "layer": "client", "type": "module", "status": "active", "path": "bff/src/cli/", "description": "npm run gw:路由查詢、OpenAPI 轉路由草稿、發佈(apply)" },
 
       { "id": "nginx-443", "name":"Nginx :443", "layer": "entry", "type": "gateway", "status": "active", "path": "nginx/conf.d/portal.conf", "description": ":80 轉址、:443 SPA 子路徑託管(/srv/www/<app>/current)、/api → BFF、/ws、/webhook(IP 白名單)" },
-      { "id": "nginx-9443", "name": "Nginx :9443", "layer": "entry", "type": "gateway", "status": "active", "path": "nginx/conf.d/agent.conf", "description": "Agent 專用:ssl_verify_client on、gRPC(HTTP/2)grpc_pass 到 Endpoint Server(ARCHITECTURE D3)" },
+      { "id": "nginx-9443", "name": "Nginx :9443", "layer": "entry", "type": "gateway", "status": "active", "path": "nginx/conf.d/agent.conf", "description": "Agent 專用:ssl_verify_client on,HTTPS / WebSocket 轉 Endpoint Server(ARCHITECTURE D3;現行 agent.conf 仍為 gRPC 版 grpc_pass,待 W6 改寫)" },
       { "id": "nginx-snippets", "name": "共用片段", "layer": "entry", "type": "config", "status": "active", "path": "nginx/snippets/、templates/、allowlists/", "description": "ssl、security-headers、proxy-bff、websocket、spa-*、json-errors;依部署區的值放 templates/、allowlists/<區域>/" },
 
       { "id": "auth-routes", "name": "Auth API", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/auth/routes.ts", "description": "/api/auth/login、refresh、logout、me、password/change、register/verify;/_auth/verify(Nginx auth_request);/.well-known/jwks.json" },
@@ -75,14 +75,14 @@
     "flows": [
       { "from": "browser", "to": "nginx-443", "label": "HTTPS", "status": "active" },
       { "from": "downstream-client", "to": "nginx-443", "label": "X-Api-Key", "status": "active" },
-      { "from": "agent", "to": "nginx-9443", "label": "mTLS gRPC", "status": "planned" },
+      { "from": "agent", "to": "nginx-9443", "label": "mTLS HTTPS / WebSocket", "status": "planned" },
       { "from": "nginx-443", "to": "auth-routes", "label": "/api/auth/*、auth_request", "status": "active" },
       { "from": "nginx-443", "to": "router-plugin", "label": "/api/*", "status": "active" },
       { "from": "nginx-443", "to": "admin-routes", "label": "/api/admin/*", "status": "active" },
       { "from": "nginx-443", "to": "notify-ws", "label": "/ws/notify", "status": "active" },
       { "from": "nginx-443", "to": "webhook", "label": "/webhook/*", "status": "planned" },
       { "from": "nginx-443", "to": "downstream", "label": "/ws/endpoint/* 驗證後直連", "status": "planned" },
-      { "from": "nginx-9443", "to": "downstream", "label": "grpc_pass", "status": "planned" },
+      { "from": "nginx-9443", "to": "downstream", "label": "proxy_pass(WebSocket)", "status": "planned" },
       { "from": "auth-routes", "to": "auth-login", "status": "active" },
       { "from": "auth-routes", "to": "auth-session", "status": "active" },
       { "from": "auth-login", "to": "auth-profile", "status": "active" },

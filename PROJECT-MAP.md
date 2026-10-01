@@ -23,7 +23,7 @@ flowchart TB
     subgraph Gateway ["Nginx Gateway (地端唯一入口主機 IP)"]
         direction TB
         N_HTTPS[":443 HTTPS / HTTP/2 入口<br/>• SPA 靜態託管 (/srv/www/*/current)<br/>• 業務 API 反代 (/api/*)<br/>• IT 專用 API (/it/api/*，v0.7 規劃轉 /api/it/*)<br/>• 串流 WebSocket (/ws/endpoint/*)"]
-        N_MTLS[":9443 Agent 專用通道<br/>• mTLS 強制驗證 (ssl_verify_client on)<br/>• gRPC / HTTP/2 雙向串流 (長連線)"]
+        N_MTLS[":9443 Agent 專用通道<br/>• mTLS 強制驗證 (ssl_verify_client on)<br/>• HTTPS 回報 + WebSocket 指令 (長連線)"]
     end
 
     %% ======================= 身分與政策中心 =======================
@@ -53,7 +53,7 @@ flowchart TB
     subgraph Backends ["下游服務群 (Ports 51200–51300)"]
         ItBackend["itapp-api (:51291)<br/>Fastify 5 + TypeScript<br/>現行 /it/api/*，規劃納入 BFF /api/it/*"]
         PortalBackend["portal-api (:51271)<br/>Fastify (規劃中 M4 啟動)"]
-        EndpointServer["Endpoint Server (:51240 REST / :51241 gRPC)<br/>端點管理 / 遠端指令 / 螢幕串流"]
+        EndpointServer["Endpoint Server (RustIt, Rust + Axum)<br/>:51240 REST / :51241 HTTPS + WebSocket<br/>端點管理 / 遠端指令 / 螢幕串流"]
         RustDeskServer["RustDesk Server (hbbs/hbbr)<br/>自架內網遠端桌面中繼"]
         MESService["Go MES (:51210)"]
         HRM_FMS["Node HRM (:51220) / FMS (:51230)"]
@@ -82,7 +82,7 @@ flowchart TB
     BrowserIT -->|"HTTPS :443 (/it/* & /it/api/*)"| N_HTTPS
     ExtWebhook -->|"HTTPS :443 (/webhook/*)"| N_HTTPS
     RustTray -.->|"報修 / 查設備"| BrowserUser
-    RustAgent -->|"mTLS gRPC :9443"| N_MTLS
+    RustAgent -->|"mTLS HTTPS / WSS :9443"| N_MTLS
 
     N_HTTPS -->|"/ 靜態檔"| PortalSPA
     N_HTTPS -->|"/it/ 靜態檔"| ItSPA
@@ -90,7 +90,7 @@ flowchart TB
     N_HTTPS -->|"/api/*, /ws/notify"| BFF_Cluster
     N_HTTPS -->|"/it/api/* (現況直轉)"| ItBackend
     N_HTTPS -.->|"/ws/endpoint/* (auth_request 驗證)"| EndpointServer
-    N_MTLS -->|"grpc_pass (帶憑證 DN/FP)"| EndpointServer
+    N_MTLS -->|"proxy_pass (帶憑證 DN/FP)"| EndpointServer
 
     PortalSPA -.->|"依賴"| WebKit
     ItSPA -.->|"依賴"| WebKit
@@ -117,7 +117,7 @@ flowchart TB
 | [`giga-api-gateway-bff`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-api-gateway-bff) | **GigaNexus Gateway & BFF** | • 全集團地端唯一反向代理網關<br/>• 身分驗證中心 (AD/BPM/LOS/本機)<br/>• 資料庫驅動動態路由與權限檢查點<br/>• 內部短效 JWT 發放、通知與審計<br/>• 前後端共用套件提供者 (`web-kit`, `sdk/node`) | Nginx + Node.js 22 (Fastify 5) + Drizzle ORM + Redis 7 + SQL Server 2012 | • `:443` (HTTPS/WSS)<br/>• `:9443` (Agent mTLS)<br/>• 內部叢集容器 (`bff-1`, `bff-2`) | **所有子系統的核心骨幹**<br/>所有前端 SPA 經它託管，所有業務 API 經由它做 RBAC 鑑權與轉發。 |
 | [`giga-Portal`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-Portal) | **GigaNexus 員工入口網** | • 集團員工單一登入入口 (`/login`)<br/>• 首頁儀表板、待辦事項、個人資料<br/>• 跨應用切換器 (`GAppSwitcher`)<br/>• 未來 portal-api (Port 51271) 載體 | 前端: Vue 3 + Vite + TypeScript (科技綠風格)<br/>後端: `portal-api` (規劃中) | 前端: `:443/` (dev `:5179`)<br/>後端: `:51271` (`/api/portal/*`) | • 依賴 `giga-api-gateway-bff` 登入與 `/me`<br/>• 依賴 `GigaItApp` 設定其選單與按鈕權限<br/>• 包含跳轉至 `GigaItApp` 等系統的導航起點 |
 | [`GigaItApp`](file:///d:/檔案分享/程式碼/GigaNexusAI/GigaItApp) | **GigaNexus IT 管理系統** | • IT 部門內部專用管理後台<br/>• Gateway 動態路由清單維護與發佈<br/>• BFF 角色權限矩陣可視化設定<br/>• IT 內部人員/部門/稽核/端點設備檢視 | 前端: Vue 3 + Vite (深色科技玻璃)<br/>後端: Fastify 5 + TypeScript (`itapp-api`) | 前端: `:443/it/` (dev `:5177`)<br/>後端: `:51291` (`/it/api/*`)<br/>*(v0.7 規劃轉 `/api/it/*`)* | • 以服務帳號呼叫 `giga-api-gateway-bff` 的 `/api/admin/*`<br/>• 讀取並管理全平台 RBAC 與 API 路由<br/>• 透過 `/api/endpoint/*` 監控 `RustIt` 端點 |
-| [`RustIt`](file:///d:/檔案分享/程式碼/GigaNexusAI/RustIt) | **企業資產管理與端點控管** | • Windows 端點軟硬體資產蒐集 (WMI/Win32)<br/>• USB 控管 (WM_DEVICECHANGE/USBSTOR)<br/>• 軟體背景靜默派送、RustDesk 整合<br/>• 端點原生介面 (<90MB) 與托盤程式 | Rust (Cargo workspace: `collector`, `demo` [Tauri], `native` [egui], `agent`) | Agent: `:9443` (mTLS gRPC)<br/>串流: `:443/ws/endpoint/*`<br/>後端目標: `:51240`, `:51241` | • Agent 透過 Gateway `:9443` 上報資料至 Endpoint Server<br/>• 資產資料呈現於 `GigaItApp` 設備清單<br/>• 報修與公告連動 `giga-Portal` 與 IT 服務台 |
+| [`RustIt`](file:///d:/檔案分享/程式碼/GigaNexusAI/RustIt) | **企業資產管理與端點控管** | • Windows 端點軟硬體資產蒐集 (WMI/Win32)<br/>• USB 控管 (WM_DEVICECHANGE/USBSTOR)<br/>• 軟體背景靜默派送、RustDesk 整合<br/>• 端點原生介面 (<90MB) 與托盤程式 | Rust (Cargo workspace: `collector`, `demo` [Tauri], `native` [egui], `agent`;規劃 `server`、`watchdog`、`tray`) | Agent: `:9443` (mTLS, HTTPS + WebSocket)<br/>串流: `:443/ws/endpoint/*`<br/>後端目標: `:51240`, `:51241` | • Agent 透過 Gateway `:9443` 上報資料至 Endpoint Server<br/>• 資產資料呈現於 `GigaItApp` 設備清單<br/>• 報修與公告連動 `giga-Portal` 與 IT 服務台 |
 
 ---
 
@@ -125,7 +125,7 @@ flowchart TB
 
 ### 3.1 網路路由與流量入口對應 (Network & URL Routing Map)
 
-所有外部請求一律以 **主機 IP** 進入 Nginx：
+瀏覽器與系統以 **DNS 名稱**(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`)進入 `:443`;Agent 以 **主機 IP** 進入 `:9443`：
 
 ```
 [客戶端瀏覽器 / 外部系統]
@@ -146,15 +146,15 @@ flowchart TB
         │
 [200+ 台 Windows 端點 Agent]
         │
-        └── mTLS HTTP/2 :9443
-              └── (gRPC 長連線)          ──▶ Nginx [驗證裝置憑證] ──(grpc_pass)──▶ endpoint-grpc:51241
+        └── mTLS HTTP/1.1 :9443
+              └── (HTTPS 回報 + WebSocket 長連線) ──▶ Nginx [驗證裝置憑證] ──(proxy_pass)──▶ endpoint-agent:51241
 ```
 
 - **下游服務 Port 標準區段 (51200–51300)**：
   - `51201`: `node-sample` (Gateway 平台 Fastify 後端樣本)
   - `51210`: `go-mes` (MES 生產製造)
   - `51220`: `HRM` (人力資源) / `51230`: `FMS` (廠務管理)
-  - `51240`: `endpoint-api` (HTTP/REST) / `51241`: `endpoint-grpc` (gRPC TLS)
+  - `51240`: `endpoint-api` (HTTP/REST) / `51241`: `endpoint-agent` (HTTPS / WebSocket over TLS)
   - `51250`: `BPM 適配層` / `51260`: `ERP 適配層`
   - `51271`: `portal-api` (員工入口網，dev 模擬為 51270)
   - `51280`: `BI / 報表`
@@ -262,13 +262,13 @@ flowchart TD
     end
 
     subgraph GatewayChannel ["Gateway 通道"]
-        Port9443["Nginx :9443 (mTLS gRPC 通道)"]
+        Port9443["Nginx :9443 (mTLS HTTPS / WebSocket 通道)"]
         Port443_WS["Nginx :443 /ws/endpoint/* (螢幕串流)"]
         Port443_API["Nginx :443 /api/endpoint/* (REST API)"]
     end
 
     subgraph EndpointCore ["端點核心服務 (Ports 51240/51241)"]
-        EPS_gRPC["Endpoint Server gRPC (:51241)<br/>接收資產回報與心跳"]
+        EPS_Agent["Endpoint Server Agent 通道 (:51241)<br/>HTTPS 資產回報 / WebSocket 心跳與指令"]
         EPS_REST["Endpoint Server API (:51240)<br/>提供查詢與指令派發"]
         RDS["RustDesk Server (hbbs/hbbr 自架中繼)"]
     end
@@ -280,7 +280,7 @@ flowchart TD
     end
 
     %% 連線
-    Agent -->|"每 60s 心跳 / 開機資產全量上報"| Port9443 --> EPS_gRPC
+    Agent -->|"每 60s 心跳 / 開機資產全量上報"| Port9443 --> EPS_Agent
     Agent -.->|"受控端就緒"| RDS
 
     ItDevices -->|GET /api/endpoint/devices| Port443_API --> EPS_REST
@@ -289,7 +289,7 @@ flowchart TD
     ItRemote -.->|Web 串流模式| Port443_WS
 
     Tray -.->|"提交工單"| PortalUser
-    EPS_REST -->|"派發指令: 軟體安裝/重新掃描"| EPS_gRPC --> Agent
+    EPS_REST -->|"派發指令: 軟體安裝/重新掃描"| EPS_Agent -->|WebSocket| Agent
 ```
 
 1. **資產自動回報**：`RustIt Agent` 執行 `collector`（取得 CPU、磁碟 SMART、主機板 UUID、軟體機碼、USB 狀態），每 60 秒心跳與開機掃描透過 Gateway `:9443` (mTLS) 回傳至 Endpoint Server。

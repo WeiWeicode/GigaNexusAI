@@ -32,7 +32,8 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 
 - 某個資料夾不在你的工作區(沒有 clone)時,明確說明「未讀取」,不要猜內容。
-- 規劃中但尚無 repo 的元件(Endpoint Server、C# Watchdog、各業務系統)記錄在 `workspace.json`,`status` 為 `planned`。
+- 規劃中的元件(RustIt 內的 Endpoint Server、Rust Watchdog;各業務系統)記錄在 `workspace.json`,`status` 為 `planned`。
+- **時程以 NexusPlan 甘特圖為準**(`GigaNexusAIPlan`,`npm run serve` → http://localhost:5190);各專案文件不另列日期,只記錄狀態。
 
 ## 4. 工作規則(摘要)
 
