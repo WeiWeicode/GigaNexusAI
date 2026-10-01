@@ -33,7 +33,7 @@
     { "id": "W3-6", "workstreamId": "W3", "name": "◆ 測試區 Gateway + BFF 可用", "owner": "提案人", "start": "2026-09-30", "end": "2026-09-30", "progress": 100, "status": "done", "type": "milestone", "description": "測試區 giganexus-test.gigasolar.com.tw 經 W1 Pipeline 部署,giga-Portal、GigaItApp 已上架" },
 
     { "id": "W4-5", "workstreamId": "W4", "name": "與IT串接資料與功能", "owner": "", "start": "2027-04-08", "end": "2027-04-28" },
-    { "id": "W4-6", "workstreamId": "W4", "name": "開發權限與BFF操作", "owner": "", "start": "2026-11-03", "end": "2026-11-09", "progress": 35, "status": "in_progress" },
+    { "id": "W4-6", "workstreamId": "W4", "name": "開發權限與BFF操作", "owner": "", "start": "2026-11-03", "end": "2026-11-09", "progress": 50, "status": "in_progress" },
     { "id": "W4-1", "workstreamId": "W4", "name": "需求與畫面規劃（沿用 Canvas UI）", "owner": "提案人", "start": "2026-10-19", "end": "2026-10-30", "description": "頁面清單、線框" },
     { "id": "W4-2", "workstreamId": "W4", "name": "端點清單 / 搜尋 / 狀態頁", "owner": "提案人", "start": "2027-01-16", "end": "2027-02-10", "description": "搜尋姓名、工號、電腦名稱" },
     { "id": "W4-3", "workstreamId": "W4", "name": "資產明細、告警頁", "owner": "提案人", "start": "2027-02-15", "end": "2027-03-12", "description": "串 W6 資料（先用 mock）" },
