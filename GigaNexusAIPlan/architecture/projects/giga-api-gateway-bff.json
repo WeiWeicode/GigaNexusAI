@@ -787,7 +787,7 @@
       { "key": "gw:rt:{familyId}", "type": "Hash", "ttl": "8h / 7d", "purpose": "Refresh Token 家族" },
       { "key": "gw:user:rt:{userId}", "type": "Set", "ttl": "同上", "purpose": "使用者所有 RT 家族(強制登出)" },
       { "key": "gw:deny:{jti}", "type": "String", "ttl": "AT 剩餘效期", "purpose": "已撤銷 Access Token" },
-      { "key": "gw:login:fail:{user} / gw:login:fail:ip:{ip}", "type": "Counter", "ttl": "15 分", "purpose": "登入失敗限流" },
+      { "key": "gw:login:fail:{user} / gw:login:fail:ip:{ip}", "type": "Counter", "ttl": "15 分", "purpose": "登入失敗限流(2026-10-01 暫停,不再寫入)" },
       { "key": "gw:rl:{policy}:{key}", "type": "Sorted Set", "ttl": "視窗秒數", "purpose": "滑動視窗限流" },
       { "key": "gw:cache:{routeCode}:{hash}", "type": "String", "ttl": "cache_ttl_sec", "purpose": "GET 回應快取" },
       { "key": "gw:cb:{upstreamCode}", "type": "Hash", "ttl": "30 秒", "purpose": "斷路器狀態" },

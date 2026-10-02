@@ -178,7 +178,7 @@ sequenceDiagram
     Note over User,BFF: 1. 全平台單一登入 (SSO)
     User->>Portal: 開啟 /login 輸入工號與密碼
     Portal->>Nginx: POST /api/auth/login
-    Nginx->>BFF: 轉發登入請求 (嚴格限流保護)
+    Nginx->>BFF: 轉發登入請求 (限流 2026-10-01 暫停)
     BFF->>AD_DB: 驗證帳密 (AD ldapts bind) + 即時補查 BPM 部門與職級
     BFF-->>User: 寫入 httpOnly + Secure + SameSite=Strict Cookie (JWT Access & Refresh Token)
 
