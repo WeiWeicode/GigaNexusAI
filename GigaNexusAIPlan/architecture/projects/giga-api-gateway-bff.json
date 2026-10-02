@@ -38,7 +38,7 @@
       { "id": "admin-demo", "name": "Demo API(非正式區)", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/admin/db-viewer.ts、onboarding.ts", "description": "/api/admin/db/tables、/api/admin/demo/*;gwEnv=prod 時不註冊" },
       { "id": "notify-ws", "name": "通知 WebSocket", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/notify/ws.ts", "description": "/ws/notify,握手時驗 Cookie" },
       { "id": "health", "name": "健康檢查", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/health/routes.ts", "description": "/healthz、/readyz" },
-      { "id": "webhook", "name": "Webhook 驗簽", "layer": "interface", "type": "api", "status": "planned", "description": "/webhook/{source}:HMAC 驗簽後分派(ARCHITECTURE T7)" },
+      { "id": "webhook", "name": "Webhook 驗簽", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/webhook/、workers/webhook.worker.ts", "description": "/webhook/{source}:HMAC 驗簽後分派(queue 內部處理程序或 route 轉送上游,ARCHITECTURE T7)" },
 
       { "id": "auth-plugin", "name": "認證 Hook / CSRF", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/plugin.ts", "description": "驗 Access Token Cookie / API Key、CSRF 雙重提交;登入前免驗證的路徑白名單" },
       { "id": "auth-login", "name": "登入(AD / 本機)", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/login.ts、ldap.ts、password.ts", "description": "AD 3 網域 bind(ldapts)或本機帳號(Argon2id);舊入口帳號首次登入遷移;一個工號一種驗證方式(D8)" },
@@ -47,12 +47,12 @@
       { "id": "auth-apikey", "name": "API Key", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/api-key.ts", "description": "系統對系統 X-Api-Key:前綴查詢、Argon2id 雜湊、權限範圍、允許 IP" },
       { "id": "rbac", "name": "RBAC 權限計算", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/rbac/permission.ts", "description": "有效角色 = AD 群組 ∪ 公司預設 ∪ 指派規則(v0.7)∪ 個別指派;結果快取 gw:perm:{userId}:{pv}" },
       { "id": "router-table", "name": "路由樹", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/table.ts", "description": "記憶體內路由樹(find-my-way),明確路徑優先於萬用字元" },
-      { "id": "router-guards", "name": "限流 / 快取 / 斷路器", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/guards.ts", "description": "滑動視窗限流、GET 回應快取、斷路器狀態(Redis)" },
+      { "id": "router-guards", "name": "限流 / 快取 / 斷路器", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/guards.ts", "description": "滑動視窗限流、GET 回應快取、斷路器狀態(各實例記憶體)" },
       { "id": "router-upstream", "name": "上游轉發", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/upstream.ts", "description": "undici 呼叫下游,附 X-Internal-Token(aud = 服務代碼)" },
       { "id": "router-sync", "name": "快照載入", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/snapshot.ts、sync.ts", "description": "訂閱 gw:config:changed,載入快照並原子替換路由樹;每 60 秒補償檢查(DATABASE §7.3)" },
       { "id": "route-import", "name": "OpenAPI 匯入", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/admin/route-import.ts、cli/openapi.ts", "description": "OpenAPI(x-gateway、x-permissions、x-gherkin)→ 路由草稿(draft)" },
-      { "id": "notify-worker", "name": "通知 Worker", "layer": "core", "type": "worker", "status": "planned", "description": "BullMQ:Email / 站內通知(LINE 暫緩)" },
-      { "id": "sync-worker", "name": "人員同步 Worker", "layer": "core", "type": "worker", "status": "planned", "description": "BullMQ 每小時:BPM + LOS → gw.user / gw.user_company / gw.department(DATABASE §8.3)" },
+      { "id": "notify-worker", "name": "通知 Worker", "layer": "core", "type": "worker", "status": "active", "path": "bff/src/workers/notify.worker.ts、alert.ts", "description": "BullMQ:Email / 站內通知(LINE 暫緩);死信告警寄 ALERT_EMAIL_TO" },
+      { "id": "sync-worker", "name": "人員同步 Worker", "layer": "core", "type": "worker", "status": "active", "path": "bff/src/workers/employee-sync.worker.ts、modules/auth/employee-sync.ts", "description": "BullMQ 每小時:BPM + LOS → gw.user / gw.user_company / gw.department(DATABASE §8.3);管理 API / CLI 手動觸發,中止與離職告警寄 ALERT_EMAIL_TO" },
 
       { "id": "plugin-db", "name": "DB 連線池", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/plugins/db.ts、db/client.ts", "description": "giganexus_gw(讀寫)與 BPM / LOS / PortalSolar(各自唯讀帳號與連線池)" },
       { "id": "plugin-redis", "name": "Redis 連線", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/plugins/redis.ts", "description": "ioredis;鍵一律 gw: 開頭並登記於 DATABASE §6" },
@@ -80,7 +80,7 @@
       { "from": "nginx-443", "to": "router-plugin", "label": "/api/*", "status": "active" },
       { "from": "nginx-443", "to": "admin-routes", "label": "/api/admin/*", "status": "active" },
       { "from": "nginx-443", "to": "notify-ws", "label": "/ws/notify", "status": "active" },
-      { "from": "nginx-443", "to": "webhook", "label": "/webhook/*", "status": "planned" },
+      { "from": "nginx-443", "to": "webhook", "label": "/webhook/*", "status": "active" },
       { "from": "nginx-443", "to": "downstream", "label": "/ws/endpoint/* 驗證後直連", "status": "planned" },
       { "from": "nginx-9443", "to": "downstream", "label": "proxy_pass(WebSocket)", "status": "planned" },
       { "from": "auth-routes", "to": "auth-login", "status": "active" },
@@ -110,10 +110,10 @@
       { "from": "db-release", "to": "plugin-redis", "label": "快照 + PUBLISH", "status": "active" },
       { "from": "route-import", "to": "plugin-db", "status": "active" },
       { "from": "notify-ws", "to": "auth-session", "label": "驗 Cookie", "status": "active" },
-      { "from": "webhook", "to": "notify-worker", "status": "planned" },
-      { "from": "notify-worker", "to": "plugin-redis", "label": "BullMQ", "status": "planned" },
-      { "from": "sync-worker", "to": "db-external", "status": "planned" },
-      { "from": "sync-worker", "to": "plugin-db", "status": "planned" },
+      { "from": "webhook", "to": "notify-worker", "status": "active" },
+      { "from": "notify-worker", "to": "plugin-redis", "label": "BullMQ", "status": "active" },
+      { "from": "sync-worker", "to": "db-external", "status": "active" },
+      { "from": "sync-worker", "to": "plugin-db", "status": "active" },
       { "from": "plugin-db", "to": "sql-gw", "status": "active" },
       { "from": "db-external", "to": "ext-hr", "label": "唯讀", "status": "active" },
       { "from": "plugin-redis", "to": "redis", "status": "active" },
@@ -358,9 +358,9 @@
           { "name": "resource", "type": "VARCHAR(50)" },
           { "name": "action", "type": "VARCHAR(30)" },
           { "name": "description", "type": "NVARCHAR(500)" },
-          { "name": "kind", "type": "VARCHAR(10)", "status": "planned", "note": "app / menu / tab / button / api,預設 api" },
-          { "name": "parent_code", "type": "VARCHAR(100)", "status": "planned", "note": "上層權限代碼" },
-          { "name": "sort", "type": "SMALLINT", "status": "planned" }
+          { "name": "kind", "type": "VARCHAR(10)", "status": "active", "note": "app / menu / tab / button / api,預設 api" },
+          { "name": "parent_code", "type": "VARCHAR(100)", "status": "active", "note": "上層權限代碼" },
+          { "name": "sort", "type": "SMALLINT", "status": "active" }
         ]
       },
       {
@@ -499,7 +499,7 @@
         ]
       },
       {
-        "id": "gw.role_rule", "store": "gw", "group": "rule", "status": "planned", "audit": true,
+        "id": "gw.role_rule", "store": "gw", "group": "rule", "status": "active", "audit": true,
         "description": "依人事欄位指派角色:規則內條件 AND、同角色多規則 OR,NULL = 不限",
         "columns": [
           { "name": "rule_id", "type": "INT", "key": "PK" },
@@ -514,7 +514,7 @@
         ]
       },
       {
-        "id": "gw.department", "store": "gw", "group": "rule", "status": "planned",
+        "id": "gw.department", "store": "gw", "group": "rule", "status": "active",
         "description": "部門樹(BPM OrganizationUnit 同步)",
         "columns": [
           { "name": "dept_code", "type": "VARCHAR(30)", "key": "PK" },
@@ -527,7 +527,7 @@
         ]
       },
       {
-        "id": "gw.app", "store": "gw", "group": "rule", "status": "planned", "audit": true,
+        "id": "gw.app", "store": "gw", "group": "rule", "status": "active", "audit": true,
         "description": "應用登記;/api/auth/me 的 apps 依此與使用者權限過濾",
         "columns": [
           { "name": "app_id", "type": "INT", "key": "PK" },
@@ -761,12 +761,12 @@
       { "from": "gw.company", "to": "gw.role_company", "card": "1:N", "column": "company_id", "label": "grants" },
       { "from": "gw.user", "to": "gw.local_credential", "card": "1:0..1", "column": "user_id", "label": "local login" },
       { "from": "gw.user", "to": "gw.local_account_token", "card": "1:N", "column": "user_id", "label": "issues" },
-      { "from": "gw.role", "to": "gw.role_rule", "card": "1:N", "column": "role_id", "label": "matched_by", "status": "planned" },
-      { "from": "gw.company", "to": "gw.role_rule", "card": "1:N", "column": "company_id", "label": "condition", "status": "planned" },
-      { "from": "gw.department", "to": "gw.department", "card": "1:N", "column": "parent_dept_code", "label": "parent_of", "status": "planned" },
-      { "from": "gw.company", "to": "gw.department", "card": "1:N", "column": "company_id", "label": "owns", "status": "planned" },
-      { "from": "gw.permission", "to": "gw.permission", "card": "1:N", "column": "parent_code", "label": "parent_of", "status": "planned" },
-      { "from": "gw.permission", "to": "gw.app", "card": "1:N", "column": "permission_code", "label": "grants_access", "status": "planned" },
+      { "from": "gw.role", "to": "gw.role_rule", "card": "1:N", "column": "role_id", "label": "matched_by", "status": "active" },
+      { "from": "gw.company", "to": "gw.role_rule", "card": "1:N", "column": "company_id", "label": "condition", "status": "active" },
+      { "from": "gw.department", "to": "gw.department", "card": "1:N", "column": "parent_dept_code", "label": "parent_of", "status": "active" },
+      { "from": "gw.company", "to": "gw.department", "card": "1:N", "column": "company_id", "label": "owns", "status": "active" },
+      { "from": "gw.permission", "to": "gw.permission", "card": "1:N", "column": "parent_code", "label": "parent_of", "status": "active" },
+      { "from": "gw.permission", "to": "gw.app", "card": "1:N", "column": "permission_code", "label": "grants_access", "status": "active" },
       { "from": "gw.user", "to": "gw.notify_message", "card": "1:N", "column": "user_id", "label": "receives" },
       { "from": "gw.notify_template", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "template_code", "label": "renders" },
       { "from": "gw.user", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "recipient_user_id", "label": "recipient" },
