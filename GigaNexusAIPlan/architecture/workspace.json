@@ -64,7 +64,7 @@
       "status": "active",
       "repo": "GigaItApp",
       "detail": null,
-      "summary": "IT 部門管理後台:BFF 路由與權限視覺化設定(應用 / 選單 / Tab / 按鈕)、端點管理(經 BFF)。前端 /it/ + 後端 itapp-api(51291)。目前自有登入,v0.7 規劃改單一入口。",
+      "summary": "IT 部門管理後台(單一入口):選單管理(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、權限設定(角色 / 部門〔職級門檻〕/ 個人)、權限查詢(唯讀)、服務與路由、端點管理(經 BFF)。前端 /it/ + itapp-api(51291,/api/it/* 經 BFF)。畫面權限模型的範本。",
       "tech": ["Vue 3", "Vite", "Fastify 5", "TypeScript"],
       "endpoints": ["/it/", "/it/api/* → itapp-api :51291(v0.7 規劃改 /api/it/* 經 BFF)"],
       "docs": ["GigaItApp/AGENT.md", "GigaItApp/docs/PROJECT-MAP.md", "GigaItApp/docs/ARCHITECTURE.md"]

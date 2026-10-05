@@ -29,7 +29,7 @@ flowchart TB
     %% ======================= 身分與政策中心 =======================
     subgraph BFF_Cluster ["Node.js BFF (Fastify 5 叢集)"]
         AUTH["Auth 認證模組<br/>• AD 3 網域 / 本機帳號 (Argon2id)<br/>• httpOnly JWT Cookie (Access/Refresh)<br/>• 登入即時補查 BPM/LOS"]
-        RBAC["動態 RBAC 核心 (5 種 kind)<br/>app / menu / tab / button / api<br/>按鈕權限 = API 權限"]
+        RBAC["動態 RBAC 核心 (6 種 kind)<br/>app / group / menu / tab / button / api<br/>畫面節點綁定 API(授予即取得)<br/>角色 ∪ 部門 ∪ 個人"]
         ROUTER["動態路由與聚合<br/>• SQL Server 路由表 + Redis 快取<br/>• 斷路器 / 限流 / GET 快取<br/>• 附加 X-Internal-Token (60s)"]
         ADMIN_API["BFF Admin API<br/>• /api/admin/* (供 GigaItApp 動態維護)<br/>• 後端自動註冊與草稿匯入<br/>• 既有路由查詢 CLI"]
         NOTIFY["通知模組<br/>/ws/notify 握手已連線<br/>(郵件/站內佇列 Worker 規劃中)"]
@@ -116,7 +116,7 @@ flowchart TB
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | [`giga-api-gateway-bff`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-api-gateway-bff) | **GigaNexus Gateway & BFF** | • 全集團地端唯一反向代理網關<br/>• 身分驗證中心 (AD/BPM/LOS/本機)<br/>• 資料庫驅動動態路由與權限檢查點<br/>• 內部短效 JWT 發放、通知與審計<br/>• 前後端共用套件提供者 (`web-kit`, `sdk/node`) | Nginx + Node.js 22 (Fastify 5) + Drizzle ORM + Redis 7 + SQL Server 2012 | • `:443` (HTTPS/WSS)<br/>• `:9443` (Agent mTLS)<br/>• 內部叢集容器 (`bff-1`, `bff-2`) | **所有子系統的核心骨幹**<br/>所有前端 SPA 經它託管，所有業務 API 經由它做 RBAC 鑑權與轉發。 |
 | [`giga-Portal`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-Portal) | **GigaNexus 員工入口網** | • 集團員工單一登入入口 (`/login`)<br/>• 首頁儀表板、待辦事項、個人資料<br/>• 跨應用切換器 (`GAppSwitcher`)<br/>• 未來 portal-api (Port 51271) 載體 | 前端: Vue 3 + Vite + TypeScript (科技綠風格)<br/>後端: `portal-api` (規劃中) | 前端: `:443/` (dev `:5179`)<br/>後端: `:51271` (`/api/portal/*`) | • 依賴 `giga-api-gateway-bff` 登入與 `/me`<br/>• 依賴 `GigaItApp` 設定其選單與按鈕權限<br/>• 包含跳轉至 `GigaItApp` 等系統的導航起點 |
-| [`GigaItApp`](file:///d:/檔案分享/程式碼/GigaNexusAI/GigaItApp) | **GigaNexus IT 管理系統** | • IT 部門內部專用管理後台<br/>• Gateway 動態路由清單維護與發佈<br/>• BFF 角色權限矩陣可視化設定<br/>• IT 內部人員/部門/稽核/端點設備檢視 | 前端: Vue 3 + Vite (深色科技玻璃)<br/>後端: Fastify 5 + TypeScript (`itapp-api`) | 前端: `:443/it/` (dev `:5177`)<br/>後端: `:51291` (`/it/api/*`)<br/>*(v0.7 規劃轉 `/api/it/*`)* | • 以服務帳號呼叫 `giga-api-gateway-bff` 的 `/api/admin/*`<br/>• 讀取並管理全平台 RBAC 與 API 路由<br/>• 透過 `/api/endpoint/*` 監控 `RustIt` 端點 |
+| [`GigaItApp`](file:///d:/檔案分享/程式碼/GigaNexusAI/GigaItApp) | **GigaNexus IT 管理系統** | • IT 部門內部專用管理後台(單一入口)<br/>• Gateway 動態路由清單維護與發佈<br/>• **選單管理**:各應用目錄 / 選單 / Tab / 按鈕與綁定的 API<br/>• **權限設定**:角色 / 部門(職級門檻)/ 個人;權限查詢(唯讀)<br/>• 人員 / 部門 / 稽核 / 端點設備檢視<br/>• 畫面權限模型的範本 | 前端: Vue 3 + Vite (深色科技玻璃)<br/>後端: Fastify 5 + TypeScript (`itapp-api`) | 前端: `:443/it/` (dev `:5177`)<br/>後端: `:51291`(`/api/it/*` 經 BFF;過渡期 `/it/api/*`) | • 以使用者身分呼叫 `giga-api-gateway-bff` 的 `/api/admin/*`<br/>• 讀取並管理全平台 RBAC 與 API 路由<br/>• 透過 `/api/endpoint/*` 監控 `RustIt` 端點 |
 | [`RustIt`](file:///d:/檔案分享/程式碼/GigaNexusAI/RustIt) | **企業資產管理與端點控管** | • Windows 端點軟硬體資產蒐集 (WMI/Win32)<br/>• USB 控管 (WM_DEVICECHANGE/USBSTOR)<br/>• 軟體背景靜默派送、RustDesk 整合<br/>• 端點原生介面 (<90MB) 與托盤程式 | Rust (Cargo workspace: `collector`, `demo` [Tauri], `native` [egui], `agent`;規劃 `server`、`watchdog`、`tray`) | Agent: `:9443` (mTLS, HTTPS + WebSocket)<br/>串流: `:443/ws/endpoint/*`<br/>後端目標: `:51240`, `:51241` | • Agent 透過 Gateway `:9443` 上報資料至 Endpoint Server<br/>• 資產資料呈現於 `GigaItApp` 設備清單<br/>• 報修與公告連動 `giga-Portal` 與 IT 服務台 |
 
 ---
