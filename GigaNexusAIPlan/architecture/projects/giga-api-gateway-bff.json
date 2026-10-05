@@ -349,7 +349,7 @@
       },
       {
         "id": "gw.permission", "store": "gw", "group": "identity", "status": "active", "audit": true,
-        "description": "權限;代碼 {system}.{resource}.{action}。v0.7 以 kind 分五類:app / menu / tab / button / api(按鈕權限 = API 權限)",
+        "description": "權限;代碼 {system}.{resource}.{action}。kind:app / group(選單目錄,不可授予)/ menu / tab / button / api(按鈕權限 = API 權限)",
         "columns": [
           { "name": "permission_id", "type": "INT", "key": "PK" },
           { "name": "code", "type": "VARCHAR(100)", "key": "UQ", "note": "如 mes.workorder.read" },
@@ -358,9 +358,10 @@
           { "name": "resource", "type": "VARCHAR(50)" },
           { "name": "action", "type": "VARCHAR(30)" },
           { "name": "description", "type": "NVARCHAR(500)" },
-          { "name": "kind", "type": "VARCHAR(10)", "status": "active", "note": "app / menu / tab / button / api,預設 api" },
+          { "name": "kind", "type": "VARCHAR(10)", "status": "active", "note": "app / group / menu / tab / button / api,預設 api" },
           { "name": "parent_code", "type": "VARCHAR(100)", "status": "active", "note": "上層權限代碼" },
-          { "name": "sort", "type": "SMALLINT", "status": "active" }
+          { "name": "sort", "type": "SMALLINT", "status": "active" },
+          { "name": "icon", "type": "VARCHAR(30)", "status": "active", "note": "選單圖示名稱(v0.12)" }
         ]
       },
       {
