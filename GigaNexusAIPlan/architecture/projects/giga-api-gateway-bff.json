@@ -45,7 +45,7 @@
       { "id": "auth-profile", "name": "人事資料", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/profile.ts、identity.ts", "description": "BPM > LOS > AD 合併;登入時補查(並行,各 3 秒逾時)" },
       { "id": "auth-session", "name": "工作階段 / JWT", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/session.ts、keys.ts", "description": "httpOnly Access / Refresh Cookie、RT 家族、撤銷;簽發 60 秒 X-Internal-Token 與 JWKS(D4、D5)" },
       { "id": "auth-apikey", "name": "API Key", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/auth/api-key.ts", "description": "系統對系統 X-Api-Key:前綴查詢、Argon2id 雜湊、權限範圍、允許 IP" },
-      { "id": "rbac", "name": "RBAC 權限計算", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/rbac/permission.ts", "description": "有效角色 = AD 群組 ∪ 公司預設 ∪ 指派規則(v0.7)∪ 個別指派;結果快取 gw:perm:{userId}:{pv}" },
+      { "id": "rbac", "name": "RBAC 權限計算", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/rbac/permission.ts", "description": "有效角色 = AD 群組 ∪ 公司預設 ∪ 指派規則(v0.7)∪ 個別指派;有效權限 = 角色權限 ∪ 部門權限(含下層、職級門檻)∪ 個人權限(v0.12);結果快取 gw:perm:{userId}:{pv}" },
       { "id": "router-table", "name": "路由樹", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/table.ts", "description": "記憶體內路由樹(find-my-way),明確路徑優先於萬用字元" },
       { "id": "router-guards", "name": "限流 / 快取 / 斷路器", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/guards.ts", "description": "滑動視窗限流、GET 回應快取、斷路器狀態(各實例記憶體)" },
       { "id": "router-upstream", "name": "上游轉發", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/upstream.ts", "description": "undici 呼叫下游,附 X-Internal-Token(aud = 服務代碼)" },
@@ -527,6 +527,30 @@
         ]
       },
       {
+        "id": "gw.dept_permission", "store": "gw", "group": "rule", "status": "active",
+        "description": "部門權限(v0.12):直接授予部門,含下層、依職級門檻(all / section ≤7 / manager ≤6 / division ≤4)",
+        "columns": [
+          { "name": "dept_code", "type": "VARCHAR(30)", "key": "PK,FK" },
+          { "name": "permission_id", "type": "INT", "key": "PK,FK" },
+          { "name": "job_tier", "type": "VARCHAR(20)", "key": "PK" },
+          { "name": "include_sub_depts", "type": "BIT" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
+        "id": "gw.user_permission", "store": "gw", "group": "rule", "status": "active",
+        "description": "個人權限(v0.12):直接授予個人;valid_to NULL = 永久",
+        "columns": [
+          { "name": "user_id", "type": "INT", "key": "PK,FK" },
+          { "name": "permission_id", "type": "INT", "key": "PK,FK" },
+          { "name": "valid_to", "type": "DATETIME2(3)" },
+          { "name": "reason", "type": "NVARCHAR(200)" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
         "id": "gw.app", "store": "gw", "group": "rule", "status": "active", "audit": true,
         "description": "應用登記;/api/auth/me 的 apps 依此與使用者權限過濾",
         "columns": [
@@ -767,6 +791,10 @@
       { "from": "gw.company", "to": "gw.department", "card": "1:N", "column": "company_id", "label": "owns", "status": "active" },
       { "from": "gw.permission", "to": "gw.permission", "card": "1:N", "column": "parent_code", "label": "parent_of", "status": "active" },
       { "from": "gw.permission", "to": "gw.app", "card": "1:N", "column": "permission_code", "label": "grants_access", "status": "active" },
+      { "from": "gw.department", "to": "gw.dept_permission", "card": "1:N", "column": "dept_code", "label": "grants", "status": "active" },
+      { "from": "gw.permission", "to": "gw.dept_permission", "card": "1:N", "column": "permission_id", "label": "in", "status": "active" },
+      { "from": "gw.user", "to": "gw.user_permission", "card": "1:N", "column": "user_id", "label": "has", "status": "active" },
+      { "from": "gw.permission", "to": "gw.user_permission", "card": "1:N", "column": "permission_id", "label": "in", "status": "active" },
       { "from": "gw.user", "to": "gw.notify_message", "card": "1:N", "column": "user_id", "label": "receives" },
       { "from": "gw.notify_template", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "template_code", "label": "renders" },
       { "from": "gw.user", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "recipient_user_id", "label": "recipient" },
