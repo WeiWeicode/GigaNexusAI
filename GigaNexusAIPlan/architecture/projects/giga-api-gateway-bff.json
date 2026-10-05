@@ -62,7 +62,7 @@
       { "id": "db-migrate", "name": "Migration", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/db/migrate.ts、db/migrations/、sql2012-guard.ts", "description": "drizzle-kit generate + 人工審查 + db:check-2012;禁止 push" },
       { "id": "config", "name": "設定 / 錯誤代碼", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/config.ts、errors.ts、plugins/errors.ts", "description": "zod 驗證設定;錯誤代碼(PRD §8.1.1)與統一錯誤回應" },
 
-      { "id": "web-kit", "name": "@giganexus/web-kit", "layer": "shared", "type": "package", "status": "active", "path": "web-kit/src/", "description": "前端 HTTP Client:CSRF、Token 自動更新、/api/auth/me 型別" },
+      { "id": "web-kit", "name": "@giganexus/web-kit", "layer": "shared", "type": "package", "status": "active", "path": "web-kit/src/", "description": "前端 HTTP Client:CSRF、Token 自動更新、/api/auth/me 型別;多層側邊選單 useMenuTree / GnMenuTree(依權限過濾,層數不限)" },
       { "id": "backend-sdk", "name": "@giganexus/backend-sdk", "layer": "shared", "type": "package", "status": "active", "path": "sdk/node/src/", "description": "驗證 X-Internal-Token(JWKS)、自動註冊、gw-lookup 路由查詢 CLI" },
       { "id": "sample-backend", "name": "Node 後端樣本", "layer": "shared", "type": "package", "status": "active", "path": "samples/node-backend/", "description": "下游 Fastify 後端範本(port 51201),新後端複製此樣本" },
 
