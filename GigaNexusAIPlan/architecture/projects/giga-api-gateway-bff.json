@@ -528,6 +528,16 @@
         ]
       },
       {
+        "id": "gw.permission_include", "store": "gw", "group": "rule", "status": "active",
+        "description": "選單隨附的 API 讀取權限(v0.12):擁有選單即一併擁有",
+        "columns": [
+          { "name": "permission_id", "type": "INT", "key": "PK,FK" },
+          { "name": "included_permission_id", "type": "INT", "key": "PK,FK" },
+          { "name": "created_at", "type": "DATETIME2(3)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" }
+        ]
+      },
+      {
         "id": "gw.dept_permission", "store": "gw", "group": "rule", "status": "active",
         "description": "部門權限(v0.12):直接授予部門,含下層、依職級門檻(all / section ≤7 / manager ≤6 / division ≤4)",
         "columns": [
@@ -792,6 +802,7 @@
       { "from": "gw.company", "to": "gw.department", "card": "1:N", "column": "company_id", "label": "owns", "status": "active" },
       { "from": "gw.permission", "to": "gw.permission", "card": "1:N", "column": "parent_code", "label": "parent_of", "status": "active" },
       { "from": "gw.permission", "to": "gw.app", "card": "1:N", "column": "permission_code", "label": "grants_access", "status": "active" },
+      { "from": "gw.permission", "to": "gw.permission_include", "card": "1:N", "column": "permission_id", "label": "includes", "status": "active" },
       { "from": "gw.department", "to": "gw.dept_permission", "card": "1:N", "column": "dept_code", "label": "grants", "status": "active" },
       { "from": "gw.permission", "to": "gw.dept_permission", "card": "1:N", "column": "permission_id", "label": "in", "status": "active" },
       { "from": "gw.user", "to": "gw.user_permission", "card": "1:N", "column": "user_id", "label": "has", "status": "active" },
