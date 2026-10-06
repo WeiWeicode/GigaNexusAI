@@ -61,10 +61,10 @@
       "label": "觀測服務",
       "category": "platform",
       "kind": "repo",
-      "status": "planned",
+      "status": "active",
       "repo": "giga-observe",
       "detail": null,
-      "summary": "API / Nginx / 前端監控的資料後端(由 DevOpsDiagram 複製改造,W9):Ingest(紀錄、心跳、Nginx 流量彙總、前端事件)、主動探測、錯誤聚合、Query / SSE。自有 MongoDB + Redis,測試區與正式區各一套、不共用。畫面在 GigaItApp「架構觀測」,經 BFF 路由讀取。",
+      "summary": "API / Nginx / 前端監控的資料後端(由 DevOpsDiagram 複製改造,W9;2026-10-06 測試區上線):Ingest(紀錄、心跳、Nginx 流量彙總、前端事件)、主動探測、錯誤聚合、Query / SSE。自有 MongoDB + Redis,測試區與正式區各一套、不共用。畫面在 GigaItApp「架構觀測」,經 BFF 路由讀取。",
       "tech": ["Node.js", "Express", "MongoDB 7", "Redis 7"],
       "endpoints": ["Ingest / Query :5132", "SSE :5133"],
       "docs": ["giga-observe/AGENT.md", "giga-observe/docs/PRD.md", "giga-api-gateway-bff/docs/MONITORING-PLAN.md"]
@@ -281,9 +281,9 @@
     }
   ],
   "relations": [
-    { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "planned" },
-    { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "planned" },
-    { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(it.observe.*)", "status": "planned" },
+    { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
+    { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
+    { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(observe.data.read)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-Portal", "type": "proxy", "label": "Nginx 託管 SPA /", "status": "active" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/auth/*、/api/auth/me、/api/portal/*", "status": "active" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit", "status": "active" },

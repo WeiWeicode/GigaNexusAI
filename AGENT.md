@@ -28,7 +28,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `giga-Portal/` | 員工入口網(`/`,含 `/login`);應用切換起點 | `AGENT.md`、`docs/PROJECT-MAP.md` |
 | `GigaItApp/` | IT 管理系統(`/it/`);應用 / 選單 / Tab / 按鈕權限設定、端點管理 | `AGENT.md`、`docs/PROJECT-MAP.md` |
 | `RustIt/` | Windows 端點資產蒐集與控管(Agent、托盤) | `README.md`、`docs/PROJECT-MAP.md` |
-| `giga-observe/` | 觀測服務(規劃中,W9):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
+| `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
 | `GigaNexusAIPlan/` | 平台建置甘特圖(NexusPlan)與**架構圖網站**、架構資料 | `README.md`、`architecture/README.md` |
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 
