@@ -120,10 +120,10 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "Windows 端點資產蒐集(WMI / Win32)、USB 控管、軟體派送、RustDesk 整合;Agent(SYSTEM 服務)、Watchdog 與托盤程式;Endpoint Server(Axum)。Agent 以 HTTPS 回報、WebSocket 接收指令(2026-10-01 決定,不用 gRPC)。Cargo workspace:collector、native(egui)、demo(Tauri),規劃 agent、server、tray、watchdog。",
-      "tech": ["Rust", "egui", "Tauri"],
+      "summary": "Windows 端點資產蒐集(WMI / Win32)、USB 控管、軟體派送、RustDesk 整合;Agent(SYSTEM 服務)、Watchdog 與托盤程式;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,2026-10-06 決定)。Agent 以 HTTPS 回報、WebSocket 接收指令(2026-10-01 決定,不用 gRPC)。Cargo workspace:collector、native(egui)、demo(Tauri),規劃 agent、tray、watchdog;目錄拆分為 RustAgent / ItAgentBack 於整合計畫 M0 執行。",
+      "tech": ["Rust", "egui", "Tauri", "Node.js"],
       "endpoints": ["Agent → :9443 mTLS(HTTPS 回報 + WebSocket 指令)"],
-      "docs": ["RustIt/README.md", "RustIt/docs/PROJECT-MAP.md", "RustIt/docs/PRD.md"]
+      "docs": ["RustIt/README.md", "RustIt/AGENT.md", "RustIt/docs/PROJECT-MAP.md", "RustIt/docs/PRD.md", "RustIt/docs/INTEGRATION-PLAN.md"]
     },
     {
       "id": "endpoint-server",
@@ -134,10 +134,10 @@
       "status": "planned",
       "repo": "RustIt",
       "detail": null,
-      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt crates/server(Rust + Axum)。",
-      "tech": ["Rust", "Axum", "WebSocket"],
+      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。",
+      "tech": ["Node.js", "Fastify", "WebSocket", "MongoDB", "Redis"],
       "endpoints": [":51240 REST(/api/endpoint/* 經 BFF)", ":51241 HTTPS / WebSocket(經 :9443)", "/ws/endpoint/*(Nginx auth_request 後直連)"],
-      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md"]
+      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/INTEGRATION-PLAN.md", "RustIt/docs/decisions/0004-node-endpoint-server.md"]
     },
     {
       "id": "agent-watchdog",
@@ -166,6 +166,34 @@
       "tech": ["SQL Server 2012 Standard"],
       "endpoints": [],
       "docs": ["giga-api-gateway-bff/docs/DATABASE.md"]
+    },
+    {
+      "id": "sql-ita",
+      "name": "giganexus_It_Agent",
+      "label": "SQL Server 2012",
+      "category": "data",
+      "kind": "datastore",
+      "status": "planned",
+      "repo": null,
+      "detail": null,
+      "summary": "Endpoint Server(ItAgentBack)自有資料庫(schema ita):裝置登錄、最新資產、網卡、稽核;唯一真相。正式 giganexus_It_Agent,開發 / 測試共用 giganexus_It_Agent_test,整合測試 giganexus_It_Agent_poc_test。內網不加密(主管已同意);只能用 2012 語法。",
+      "tech": ["SQL Server 2012 Standard"],
+      "endpoints": [],
+      "docs": ["RustIt/docs/INTEGRATION-PLAN.md §3"]
+    },
+    {
+      "id": "ita-mongo-redis",
+      "name": "MongoDB 7 / Redis 7",
+      "label": "ItAgentBack 衍生資料",
+      "category": "data",
+      "kind": "datastore",
+      "status": "planned",
+      "repo": null,
+      "detail": null,
+      "summary": "MongoDB:每次回報的快照歷史;Redis:在線狀態(心跳 TTL)與清單快取。皆可由 SQL Server 重建,不對外開 port,測試區與正式區各一套。",
+      "tech": ["MongoDB 7", "Redis 7"],
+      "endpoints": [],
+      "docs": ["RustIt/docs/INTEGRATION-PLAN.md §3"]
     },
     {
       "id": "redis",
@@ -302,6 +330,8 @@
     { "from": "RustIt", "to": "giga-Portal", "type": "nav", "label": "托盤報修 / 公告", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "sql-gw", "type": "data", "label": "Drizzle 讀寫(不加密)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "redis", "type": "data", "label": "快照 / Pub/Sub / 快取 / 限流", "status": "active" },
+    { "from": "endpoint-server", "to": "sql-ita", "type": "data", "label": "mssql 讀寫(不加密、手寫 migration)", "status": "planned" },
+    { "from": "endpoint-server", "to": "ita-mongo-redis", "type": "data", "label": "快照歷史 / 在線狀態", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "ad", "type": "data", "label": "LDAP bind 驗證 + 群組", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "bpm", "type": "readonly", "label": "人事主來源(加密)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "los", "type": "readonly", "label": "人事補充 / 公司 / 兼任", "status": "active" },
