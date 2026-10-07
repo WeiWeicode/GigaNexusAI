@@ -1,6 +1,6 @@
 # GigaNexus 全專案架構地圖與彼此對應關係 (PROJECT-MAP)
 
-> **最後更新**：2026-10-06(RustIt 拆為 RustAgent / ItAgentBack、Endpoint Server 改 Node.js;目錄尚未搬移,見 RustIt/docs/INTEGRATION-PLAN.md)  
+> **最後更新**：2026-10-07(RustIt 測試區接通:Agent 經 :9443 回報 ItAgentBack,GigaItApp 電腦清單可見;見 RustIt/docs/INTEGRATION-PLAN.md M4)  
 > **涵蓋專案**：`giga-api-gateway-bff` (網關與身分中心)、`giga-Portal` (員工入口網)、`GigaItApp` (IT 部門管理系統)、`RustIt` (端點資產與控管平台)  
 > **上位規範**：本工作區所有專案之架構、通訊、身分、權限與介面規範以 [`giga-api-gateway-bff/docs/`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-api-gateway-bff/docs/) 為唯一上位標準（PRD v0.7）。
 
@@ -75,7 +75,7 @@ flowchart TB
         DB_BPM[("SQL Server 2019<br/>BPM 人事組織與簽核 (唯讀)")]
         RedisCache[("Redis 7<br/>路由快照 / Session / 限流 / 佇列")]
         AD_Domain[("Windows AD (3 網域)<br/>gsc / gsmc / ygdmc")]
-        DB_ITA[("ItAgentBack 儲存(規劃中)<br/>SQL Server 2012 giganexus_It_Agent (永久)<br/>MongoDB 7 (快照歷史) / Redis 7 (在線狀態)")]
+        DB_ITA[("ItAgentBack 儲存(測試區運作中)<br/>SQL Server 2012 giganexus_It_Agent (永久)<br/>MongoDB 7 (快照歷史) / Redis 7 (在線狀態)")]
     end
 
     %% 連線關係
@@ -327,7 +327,7 @@ flowchart TD
   │     ├── bff-1, bff-2 (Fastify 叢集容器)
   │     ├── itapp-api (IT 管理系統後端容器，加入同一網絡)
   │     ├── portal-api (M4 啟動，加入同一網絡)
-  │     ├── endpoint-server (Rust/Go 後端容器，加入同一網絡)
+  │     ├── endpoint-server (RustIt ItAgentBack,Node.js;加入同一網絡,自帶 ita-mongo / ita-redis)
   │     └── redis (快取與發佈訂閱容器)
   │
   └── 共享靜態檔案磁碟區：gw_www (/srv/www)

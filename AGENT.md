@@ -27,13 +27,13 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `giga-api-gateway-bff/` | Gateway:Nginx、BFF、路由表、`@giganexus/web-kit`、`@giganexus/backend-sdk`。**所有專案的上位規範** | `AGENT.md`(跨專案規則在 §10)、`docs/PROJECT-MAP.md` |
 | `giga-Portal/` | 員工入口網(`/`,含 `/login`);應用切換起點 | `AGENT.md`、`docs/PROJECT-MAP.md` |
 | `GigaItApp/` | IT 管理系統(`/it/`);應用 / 選單 / Tab / 按鈕權限設定、端點管理 | `AGENT.md`、`docs/PROJECT-MAP.md` |
-| `RustIt/` | Windows 端點資產蒐集與控管:`RustAgent/`(Rust:Agent、托盤)、`ItAgentBack/`(Node.js:Endpoint Server;拆分於整合計畫 M0 執行) | `AGENT.md`、`docs/PROJECT-MAP.md`、`docs/INTEGRATION-PLAN.md` |
+| `RustIt/` | Windows 端點資產蒐集與控管:`RustAgent/`(Rust:Agent、托盤)、`ItAgentBack/`(Node.js:Endpoint Server,測試區 2026-10-07 起運作) | `AGENT.md`、`docs/PROJECT-MAP.md`、`docs/INTEGRATION-PLAN.md` |
 | `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
 | `GigaNexusAIPlan/` | 平台建置甘特圖(NexusPlan)與**架構圖網站**、架構資料 | `README.md`、`architecture/README.md` |
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 
 - 某個資料夾不在你的工作區(沒有 clone)時,明確說明「未讀取」,不要猜內容。
-- 規劃中的元件(RustIt 的 `ItAgentBack` Endpoint Server、Rust Watchdog;各業務系統)記錄在 `workspace.json`,`status` 為 `planned`。
+- 規劃中的元件(Rust Watchdog、托盤;各業務系統)記錄在 `workspace.json`,`status` 為 `planned`;RustIt `ItAgentBack`(endpoint-server)於 2026-10-07 改為 `active`。
 - **時程以 NexusPlan 甘特圖為準**(`GigaNexusAIPlan`,`npm run serve` → http://localhost:5190);各專案文件不另列日期,只記錄狀態。
 
 ## 4. 工作規則(摘要)
@@ -49,7 +49,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | 主機 | IP | 系統 | 用途 | 帳號 |
 | --- | --- | --- | --- | --- |
 | 主機 1 | 10.10.130.123 | Ubuntu 22.04 | GitLab(`:80`)、Registry(`:5050`)、GitLab git SSH(`:2222`)、Portainer(`:9443`) | `user` |
-| 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway、GitLab Runner | `user` |
+| 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13)、GitLab Runner、RustIt endpoint-server | `user` |
 
 AI 以 SSH 金鑰 `~/.ssh/giganexus_ops`(公鑰已放入兩台 `user` 帳號)登入下指令。開發機 `~/.ssh/config` 建議設定:
 
