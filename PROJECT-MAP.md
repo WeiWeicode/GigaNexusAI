@@ -1,6 +1,6 @@
 # GigaNexus 全專案架構地圖與彼此對應關係 (PROJECT-MAP)
 
-> **最後更新**：2026-10-07(RustIt 測試區接通:Agent 經 :9443 回報 ItAgentBack,GigaItApp 電腦清單可見;見 RustIt/docs/INTEGRATION-PLAN.md M4)  
+> **最後更新**：2026-10-07(通知中心 N1–N3 測試區實測通過:BFF 公告 API / 廣播 / Email、web-kit 0.3.0、GigaItApp 通知中心;公告對象限分階段開放公司;見 giga-api-gateway-bff/docs/NOTIFY-PLAN.md §11.3–§11.4。RustIt 測試區接通:Agent 經 :9443 回報 ItAgentBack,GigaItApp 電腦清單可見;見 RustIt/docs/INTEGRATION-PLAN.md M4)  
 > **涵蓋專案**：`giga-api-gateway-bff` (網關與身分中心)、`giga-Portal` (員工入口網)、`GigaItApp` (IT 部門管理系統)、`RustIt` (端點資產與控管平台)  
 > **上位規範**：本工作區所有專案之架構、通訊、身分、權限與介面規範以 [`giga-api-gateway-bff/docs/`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-api-gateway-bff/docs/) 為唯一上位標準（PRD v0.7）。
 
@@ -32,7 +32,7 @@ flowchart TB
         RBAC["動態 RBAC 核心 (6 種 kind)<br/>app / group / menu / tab / button / api<br/>畫面節點綁定 API(授予即取得)<br/>角色 ∪ 部門 ∪ 個人"]
         ROUTER["動態路由與聚合<br/>• SQL Server 路由表 + Redis 快取<br/>• 斷路器 / 限流 / GET 快取<br/>• 附加 X-Internal-Token (60s)"]
         ADMIN_API["BFF Admin API<br/>• /api/admin/* (供 GigaItApp 動態維護)<br/>• 後端自動註冊與草稿匯入<br/>• 既有路由查詢 CLI"]
-        NOTIFY["通知模組<br/>/ws/notify 握手已連線<br/>(郵件/站內佇列 Worker 規劃中)"]
+        NOTIFY["通知模組<br/>Email / 站內通知 / 公告(全公司廣播、已讀回條)<br/>/ws/notify 即時推播(NOTIFY-PLAN)"]
         SYNC["人事同步模組<br/>現行登入即時向 BPM/LOS 補查<br/>(排程同步 Worker 規劃中)"]
     end
 

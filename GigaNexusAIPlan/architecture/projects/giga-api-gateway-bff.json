@@ -36,7 +36,8 @@
       { "id": "router-plugin", "name": "動態路由入口 /api/*", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/router/plugin.ts", "description": "catch-all /api/*:table 比對 → guards → rbac → upstream" },
       { "id": "admin-routes", "name": "Admin API", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/admin/registration.ts", "description": "POST /api/admin/registrations(後端自動註冊)、GET /api/admin/routes/catalog(路由查詢);路由 / 權限 CRUD 供 GigaItApp 使用(部分規劃中)" },
       { "id": "admin-demo", "name": "Demo API(非正式區)", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/admin/db-viewer.ts、onboarding.ts", "description": "/api/admin/db/tables、/api/admin/demo/*;gwEnv=prod 時不註冊" },
-      { "id": "notify-ws", "name": "通知 WebSocket", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/notify/ws.ts", "description": "/ws/notify,握手時驗 Cookie" },
+      { "id": "notify-ws", "name": "通知 WebSocket", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/notify/ws.ts", "description": "/ws/notify?app=portal 或 itapp,握手時驗 Cookie;個人通知 + 公告廣播(比對連線使用者的對象與管道)" },
+      { "id": "announce-api", "name": "公告 API", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/notify/announce-routes.ts、modules/admin/notify-settings.ts", "description": "發布 / 排程 / 撤回 / 提醒、已讀名單(CSV)、收件匣 /api/notify/feed、公告查詢、圖片、通知設定(NOTIFY-PLAN N1)" },
       { "id": "health", "name": "健康檢查", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/health/routes.ts", "description": "/healthz、/readyz" },
       { "id": "webhook", "name": "Webhook 驗簽", "layer": "interface", "type": "api", "status": "active", "path": "bff/src/modules/webhook/、workers/webhook.worker.ts", "description": "/webhook/{source}:HMAC 驗簽後分派(queue 內部處理程序或 route 轉送上游,ARCHITECTURE T7)" },
 
@@ -52,7 +53,9 @@
       { "id": "router-upstream", "name": "上游轉發", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/upstream.ts", "description": "undici 呼叫下游,附 X-Internal-Token(aud = 服務代碼)" },
       { "id": "router-sync", "name": "快照載入", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/router/snapshot.ts、sync.ts", "description": "訂閱 gw:config:changed,載入快照並原子替換路由樹;每 60 秒補償檢查(DATABASE §7.3)" },
       { "id": "route-import", "name": "OpenAPI 匯入", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/admin/route-import.ts、cli/openapi.ts", "description": "OpenAPI(x-gateway、x-permissions、x-gherkin)→ 路由草稿(draft)" },
-      { "id": "notify-worker", "name": "通知 Worker", "layer": "core", "type": "worker", "status": "active", "path": "bff/src/workers/notify.worker.ts、alert.ts", "description": "BullMQ:Email / 站內通知(LINE 暫緩);死信告警寄 ALERT_EMAIL_TO" },
+      { "id": "notify-worker", "name": "通知 Worker", "layer": "core", "type": "worker", "status": "active", "path": "bff/src/workers/notify.worker.ts、alert.ts", "description": "BullMQ:Email / 站內通知 / 公告 Email(CID 圖片)(LINE 暫緩);死信告警寄 ALERT_EMAIL_TO" },
+      { "id": "announce", "name": "公告對象與內容", "layer": "core", "type": "module", "status": "active", "path": "bff/src/modules/notify/announce.ts、audience.ts、html.ts、settings.ts", "description": "對象展開(gw.user + 部門樹 + 職級門檻)、公告索引快取、已讀回條、HTML 白名單清洗、通知設定" },
+      { "id": "announce-worker", "name": "公告分送 Worker", "layer": "core", "type": "worker", "status": "active", "path": "bff/src/workers/announce.worker.ts", "description": "BullMQ notify-fanout:廣播 gw:notify:broadcast、Email 逐人入列、提醒、撤回、每日保留期限清理" },
       { "id": "sync-worker", "name": "人員同步 Worker", "layer": "core", "type": "worker", "status": "active", "path": "bff/src/workers/employee-sync.worker.ts、modules/auth/employee-sync.ts", "description": "BullMQ 每小時:BPM + LOS → gw.user / gw.user_company / gw.department(DATABASE §8.3);管理 API / CLI 手動觸發,中止與離職告警寄 ALERT_EMAIL_TO" },
 
       { "id": "plugin-db", "name": "DB 連線池", "layer": "infra", "type": "infra", "status": "active", "path": "bff/src/plugins/db.ts、db/client.ts", "description": "giganexus_gw(讀寫)與 BPM / LOS / PortalSolar(各自唯讀帳號與連線池)" },
@@ -113,6 +116,12 @@
       { "from": "db-release", "to": "plugin-redis", "label": "快照 + PUBLISH", "status": "active" },
       { "from": "route-import", "to": "plugin-db", "status": "active" },
       { "from": "notify-ws", "to": "auth-session", "label": "驗 Cookie", "status": "active" },
+      { "from": "nginx-443", "to": "announce-api", "label": "/api/notify/*", "status": "active" },
+      { "from": "announce-api", "to": "announce", "status": "active" },
+      { "from": "announce-api", "to": "plugin-redis", "label": "notify-fanout", "status": "active" },
+      { "from": "announce-worker", "to": "notify-worker", "label": "Email 逐人", "status": "active" },
+      { "from": "announce-worker", "to": "notify-ws", "label": "gw:notify:broadcast", "status": "active" },
+      { "from": "notify-ws", "to": "announce", "label": "比對對象", "status": "active" },
       { "from": "webhook", "to": "notify-worker", "status": "active" },
       { "from": "notify-worker", "to": "plugin-redis", "label": "BullMQ", "status": "active" },
       { "from": "sync-worker", "to": "db-external", "status": "active" },
@@ -607,6 +616,7 @@
           { "name": "error_message", "type": "NVARCHAR(2000)" },
           { "name": "idempotency_key", "type": "VARCHAR(100)" },
           { "name": "requested_by", "type": "NVARCHAR(64)" },
+          { "name": "announcement_id", "type": "BIGINT", "note": "公告 Email" },
           { "name": "queued_at", "type": "DATETIME2(3)" },
           { "name": "sent_at", "type": "DATETIME2(3)" }
         ]
@@ -623,6 +633,79 @@
           { "name": "is_read", "type": "BIT" },
           { "name": "read_at", "type": "DATETIME2(3)" },
           { "name": "created_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.notify_announcement", "store": "gw", "group": "notify", "status": "active", "audit": true,
+        "description": "公告(一則一筆;對象與管道為 JSON,於應用層比對)",
+        "columns": [
+          { "name": "announcement_id", "type": "BIGINT", "key": "PK" },
+          { "name": "title", "type": "NVARCHAR(200)" },
+          { "name": "body_html", "type": "NVARCHAR(MAX)", "note": "白名單清洗後" },
+          { "name": "body_text", "type": "NVARCHAR(4000)", "note": "純文字版" },
+          { "name": "link_url", "type": "VARCHAR(500)" },
+          { "name": "level", "type": "VARCHAR(10)", "note": "info / important / urgent" },
+          { "name": "audience", "type": "NVARCHAR(4000)", "note": "JSON" },
+          { "name": "channels", "type": "VARCHAR(100)", "note": "JSON:portal / itapp / agent / email" },
+          { "name": "require_ack", "type": "BIT" },
+          { "name": "publish_at", "type": "DATETIME2(3)" },
+          { "name": "expire_at", "type": "DATETIME2(3)", "note": "NULL = 不到期" },
+          { "name": "status", "type": "VARCHAR(10)", "note": "draft / scheduled / published / revoked" },
+          { "name": "published_by", "type": "NVARCHAR(64)" },
+          { "name": "publisher_title", "type": "NVARCHAR(100)" },
+          { "name": "target_count", "type": "INT", "note": "發布時人數快照" },
+          { "name": "revoked_at", "type": "DATETIME2(3)" },
+          { "name": "revoked_by", "type": "NVARCHAR(64)" },
+          { "name": "idempotency_key", "type": "VARCHAR(100)" }
+        ]
+      },
+      {
+        "id": "gw.notify_announcement_asset", "store": "gw", "group": "notify", "status": "active",
+        "description": "公告內文圖片(未綁定超過 7 天清除)",
+        "columns": [
+          { "name": "asset_id", "type": "BIGINT", "key": "PK" },
+          { "name": "announcement_id", "type": "BIGINT", "key": "FK", "note": "NULL = 草稿未綁定" },
+          { "name": "content_type", "type": "VARCHAR(30)" },
+          { "name": "file_name", "type": "NVARCHAR(200)" },
+          { "name": "size_bytes", "type": "INT" },
+          { "name": "data", "type": "VARBINARY(MAX)" },
+          { "name": "created_by", "type": "NVARCHAR(64)" },
+          { "name": "created_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.notify_receipt", "store": "gw", "group": "notify", "status": "active",
+        "description": "公告已讀回條(第一次讀才寫)",
+        "columns": [
+          { "name": "announcement_id", "type": "BIGINT", "key": "PK", "note": "FK" },
+          { "name": "user_id", "type": "INT", "key": "PK", "note": "FK" },
+          { "name": "first_seen_at", "type": "DATETIME2(3)" },
+          { "name": "seen_via", "type": "VARCHAR(10)" },
+          { "name": "read_at", "type": "DATETIME2(3)" },
+          { "name": "ack_at", "type": "DATETIME2(3)" }
+        ]
+      },
+      {
+        "id": "gw.notify_setting", "store": "gw", "group": "notify", "status": "active", "audit": true,
+        "description": "通知設定(保留期限預設永久等;未設定用預設值)",
+        "columns": [
+          { "name": "setting_key", "type": "VARCHAR(50)", "key": "PK" },
+          { "name": "setting_value", "type": "NVARCHAR(2000)", "note": "JSON" }
+        ]
+      },
+      {
+        "id": "gw.notify_webhook_subscription", "store": "gw", "group": "notify", "status": "planned", "audit": true,
+        "description": "BFF 發出的 Webhook 訂閱(應用間訊息交換,N4 起使用)",
+        "columns": [
+          { "name": "subscription_id", "type": "INT", "key": "PK" },
+          { "name": "app_code", "type": "VARCHAR(30)", "key": "UQ" },
+          { "name": "events", "type": "NVARCHAR(500)", "note": "JSON" },
+          { "name": "target_type", "type": "VARCHAR(10)", "note": "internal / external" },
+          { "name": "upstream_code", "type": "VARCHAR(50)" },
+          { "name": "path", "type": "VARCHAR(200)" },
+          { "name": "url", "type": "VARCHAR(500)" },
+          { "name": "secret_ref", "type": "VARCHAR(100)" },
+          { "name": "is_enabled", "type": "BIT" }
         ]
       },
       {
@@ -813,6 +896,10 @@
       { "from": "gw.user", "to": "gw.notify_message", "card": "1:N", "column": "user_id", "label": "receives" },
       { "from": "gw.notify_template", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "template_code", "label": "renders" },
       { "from": "gw.user", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "recipient_user_id", "label": "recipient" },
+      { "from": "gw.notify_announcement", "to": "gw.notify_receipt", "card": "1:N", "column": "announcement_id", "label": "receipts" },
+      { "from": "gw.user", "to": "gw.notify_receipt", "card": "1:N", "column": "user_id", "label": "reads" },
+      { "from": "gw.notify_announcement", "to": "gw.notify_announcement_asset", "card": "1:N", "column": "announcement_id", "label": "images" },
+      { "from": "gw.notify_announcement", "to": "gw.notify_log", "card": "1:N", "fk": false, "column": "announcement_id", "label": "emails" },
       { "from": "gw.webhook_endpoint", "to": "gw.webhook_log", "card": "1:N", "column": "endpoint_id", "label": "receives" },
       { "from": "gw.user", "to": "gw.auth_log", "card": "1:N", "fk": false, "column": "user_id", "label": "events" },
       { "from": "gw.user", "to": "gw.audit_log", "card": "1:N", "fk": false, "column": "actor_user_id", "label": "acts" },
@@ -837,6 +924,10 @@
       { "key": "gw:client:{keyPrefix}", "type": "Hash", "ttl": "5 分", "purpose": "API Key 快取" },
       { "key": "gw:idem:{source}:{key}", "type": "String", "ttl": "24h", "purpose": "Webhook / 通知去重" },
       { "key": "bull:notify:*", "type": "BullMQ", "ttl": "—", "purpose": "通知佇列" },
+      { "key": "bull:notify-fanout:*", "type": "BullMQ", "ttl": "—", "purpose": "公告分送(publish / revoke / remind / retention)" },
+      { "key": "gw:notify:broadcast", "type": "Pub/Sub", "ttl": "—", "purpose": "公告廣播(worker → 各 BFF 實例)" },
+      { "key": "gw:idem:announce:{工號}:{key}", "type": "String", "ttl": "24h", "purpose": "公告發布去重" },
+      { "key": "gw:announce:remind:{id}", "type": "String", "ttl": "10 分", "purpose": "提醒未讀頻率限制" },
       { "key": "bull:employee-sync:*", "type": "BullMQ", "ttl": "—", "purpose": "人員同步排程" },
       { "key": "gw:lock:sync", "type": "String(NX PX)", "ttl": "30 秒", "purpose": "補償同步分散式鎖" },
       { "key": "gw:pwchg:{tokenHash}", "type": "String", "ttl": "10 分", "purpose": "限定變更密碼憑證" },

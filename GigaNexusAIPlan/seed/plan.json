@@ -8,7 +8,8 @@
     { "id": "W6", "name": "IT 端點 Agent + 後端 (Rust+websocket)", "color": "#e11d48", "sort": 7 },
     { "id": "W7", "name": "AI 功能 (入口網 / IT 端點)", "color": "#c026d3", "sort": 8 },
     { "id": "W8", "name": "整合舊有服務", "color": "#475569", "sort": 8 },
-    { "id": "W9", "name": "API / Nginx 監控(觀測)", "color": "#0d9488", "sort": 6 }
+    { "id": "W9", "name": "API / Nginx 監控(觀測)", "color": "#0d9488", "sort": 6 },
+    { "id": "W10", "name": "通知與公告", "color": "#ea580c", "sort": 9 }
   ],
   "tasks": [
     { "id": "W1-7", "workstreamId": "W1", "parentId": "W1-4", "name": "測試區CICD可用", "owner": "", "start": "2026-09-30", "end": "2026-09-30", "progress": 100, "status": "done", "type": "milestone" },
@@ -93,7 +94,17 @@
     { "id": "W9-9", "workstreamId": "W9", "name": "web-kit 前端健康度監測(JS 錯誤、API 失敗、Web Vitals、頁面心跳)", "owner": "佳緯", "start": "2026-10-22", "end": "2026-10-28", "progress": 100, "status": "done", "description": "web-kit monitor.ts / monitor-core.ts(JS 錯誤、API 失敗帶 requestId、Web Vitals 抽樣 10%、換頁、去重與上限);GigaItApp 只在建置版本開啟;測試 4 項" },
     { "id": "W9-10", "workstreamId": "W9", "name": "GigaItApp 架構觀測頁(架構圖 / 紀錄 / 錯誤 / 服務詳情抽屜)", "owner": "佳緯", "start": "2026-10-26", "end": "2026-11-06", "progress": 100, "status": "done", "description": "GigaItApp「API Gateway 管理 › 架構觀測」:架構圖(分層、連線、15 秒更新、服務詳情)、紀錄(Request ID 串接)、錯誤聚合、流量與來源 IP;gateway-rbac.yaml 登記;GModal 窄螢幕修正。2026-10-06 本機以示範資料實測(明亮 / 黑暗)" },
     { "id": "W9-11", "workstreamId": "W9", "name": "GigaItApp 儀表板「開發中」卡片接真實資料", "owner": "佳緯", "start": "2026-11-02", "end": "2026-11-06", "progress": 100, "status": "done", "description": "營運總覽 KPI(今日 API 呼叫、可用率、平均回應時間、資安告警)、今日流量、系統告警;Gateway 概況上游服務健康;沒有權限或未接入時維持開發中。本機實測" },
-    { "id": "W9-M", "workstreamId": "W9", "name": "◆ 測試區 API / Nginx 監控可用", "owner": "佳緯", "start": "2026-11-06", "end": "2026-11-06", "progress": 100, "status": "done", "type": "milestone", "description": "測試區監控可用。正式區注記:隨 W3-M 於主機 3 另起一套 giga-observe(OBSERVE_ENV=prod、新密碼與 Key、正式區拓樸),步驟見 MONITORING-PLAN §8.3" }
+    { "id": "W9-M", "workstreamId": "W9", "name": "◆ 測試區 API / Nginx 監控可用", "owner": "佳緯", "start": "2026-11-06", "end": "2026-11-06", "progress": 100, "status": "done", "type": "milestone", "description": "測試區監控可用。正式區注記:隨 W3-M 於主機 3 另起一套 giga-observe(OBSERVE_ENV=prod、新密碼與 Key、正式區拓樸),步驟見 MONITORING-PLAN §8.3" },
+    { "id": "W10-1", "workstreamId": "W10", "name": "通知與公告計畫(Webhook / WebSocket 分工、公告模型、管道、權限)", "owner": "佳緯", "start": "2026-10-07", "end": "2026-10-07", "progress": 100, "status": "done", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md v0.3;2026-10-07 需求方確認 D1–D11:超級管理員、L1 桌面通知(Web Push 另案)、Email 逐人寄(不匯入 Notes 群組)、HTML 編輯器、保留期限預設永久" },
+    { "id": "W10-2", "workstreamId": "W10", "name": "N1 BFF 公告資料表、API、HTML 清洗、廣播 /ws/notify、Email 逐人分批寄、設定與保留期限", "owner": "佳緯", "start": "2026-10-08", "end": "2026-10-16", "progress": 100, "status": "done", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §6.1–§6.4、§6.7–§6.9;測試區部署並實測通過(§11.3);對象限分階段開放公司(§11.4)" },
+    { "id": "W10-3", "workstreamId": "W10", "name": "N2 web-kit 通知模組(連線補漏、收件匣、公告查詢、sanitizeHtml、L1 桌面通知)", "owner": "佳緯", "start": "2026-10-14", "end": "2026-10-19", "progress": 100, "status": "done", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §6.5;web-kit 0.3.0 已發佈 npm Registry,sanitizeHtml 改用 DOMParser;測試區實測通過" },
+    { "id": "W10-4", "workstreamId": "W10", "name": "N3 GigaItApp 通知中心(發布 / 紀錄 / 我的通知 / 公告查詢 / 設定)、鈴鐺、儀表板最新公告", "owner": "佳緯", "start": "2026-10-19", "end": "2026-10-30", "progress": 100, "status": "done", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §6.5、§7、§11.3;測試區實測通過:發布含粗體 / 表格 / 圖片公告、儀表板即時收到、已閱讀回條、Email 圖片正常、撤回;未測:背景 Windows 通知、一般帳號 Tab 隱藏" },
+    { "id": "W10-5", "workstreamId": "W10", "name": "N4 Webhook 出站 + ItAgentBack 接收、ws-envelope notice / notice_ack", "owner": "佳緯", "start": "2026-10-26", "end": "2026-10-30", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §5.2、§6.6" },
+    { "id": "W10-M", "workstreamId": "W10", "name": "◆ 測試區公告可用(GigaItApp / Email / Agent 送達)", "owner": "佳緯", "start": "2026-10-30", "end": "2026-10-30", "type": "milestone" },
+    { "id": "W10-6", "workstreamId": "W10", "name": "N5 員工入口網套用(發布公告、公告查詢、鈴鐺、首頁公告欄)", "owner": "佳緯", "start": "2026-11-02", "end": "2026-11-06", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §6.5" },
+    { "id": "W10-7", "workstreamId": "W10", "name": "N6 部門主管發布(對象限本部門)", "owner": "佳緯", "start": "2026-11-09", "end": "2026-11-11", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §7" },
+    { "id": "W10-8", "workstreamId": "W10", "name": "N7 托盤顯示公告與已閱讀回報", "owner": "佳緯", "start": "2027-01-04", "end": "2027-01-15", "status": "on_hold", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md §6.6;依 RustIt 托盤程式(服務台階段)" },
+    { "id": "W10-9", "workstreamId": "W10", "name": "N8 Web Push(頁面關閉也收得到,L2)", "owner": "佳緯", "start": "2027-01-18", "end": "2027-01-29", "status": "on_hold", "description": "giga-api-gateway-bff/docs/NOTIFY-PLAN.md 附錄 A;主管決定要做時另案,需先驗證推播服務網路" }
   ],
   "dependencies": [
     ["W1-1", "W1-2"], ["W1-2", "W1-3"], ["W1-3", "W1-4"], ["W1-4", "W1-6"], ["W1-5", "W1-6"], ["W1-6", "W1-M"],
@@ -104,6 +115,7 @@
     ["W6-2", "W7-3"], ["W4-3", "W4-4"], ["W4-4", "W4-5"], ["W6-5", "W4-5"], ["W4-1", "W4-6"], ["W1-4", "W1-7"],
     ["W5-5", "W5-6"], ["W2-3", "W2-M"],
     ["W9-1", "W9-2"], ["W9-2", "W9-3"], ["W9-2", "W9-4"], ["W9-2", "W9-6"], ["W9-8", "W9-6"], ["W9-8", "W9-7"], ["W9-6", "W9-9"],
-    ["W9-8", "W9-10"], ["W9-6", "W9-10"], ["W9-7", "W9-11"], ["W9-10", "W9-M"], ["W9-11", "W9-M"], ["W9-9", "W9-M"], ["W9-5", "W9-M"]
+    ["W9-8", "W9-10"], ["W9-6", "W9-10"], ["W9-7", "W9-11"], ["W9-10", "W9-M"], ["W9-11", "W9-M"], ["W9-9", "W9-M"], ["W9-5", "W9-M"],
+    ["W10-1", "W10-2"], ["W10-2", "W10-3"], ["W10-3", "W10-4"], ["W10-2", "W10-5"], ["W10-4", "W10-M"], ["W10-5", "W10-M"], ["W10-M", "W10-6"], ["W10-4", "W10-7"], ["W10-5", "W10-8"]
   ]
 }
