@@ -311,6 +311,7 @@
   "relations": [
     { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
+    { "from": "endpoint-server", "to": "giga-observe", "type": "api", "label": "endpoint-api / endpoint-agent 紀錄與心跳(含 WebSocket 連線、在線數)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(observe.data.read)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-Portal", "type": "proxy", "label": "Nginx 託管 SPA /", "status": "active" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/auth/*、/api/auth/me、/api/portal/*", "status": "active" },
