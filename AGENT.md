@@ -44,6 +44,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 3. **找別的系統的 API 先查 BFF 路由表**,不直接連對方主機或資料庫(§10.4)。
 4. **架構有變就更新架構資料**:新增專案 / 關係、模組搬移、資料表變更後,同步修改 `GigaNexusAIPlan/architecture/*.json`,並執行 `npm run arch:check`(在 `GigaNexusAIPlan/`)。
 5. **AI 分工**:寫程式、寫測試、寫文件交給 Claude;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker(見 §7)。
+6. **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 6 個子代理,缺少時先詢問使用者是否建立(見 §8)。
 
 ## 5. 公司主機連線
 
@@ -120,3 +121,33 @@ GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`、`PROJECT-MAP.md`、`Gi
 - 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
 
 **判斷不了是否屬於「非邏輯性」時,一律視為邏輯修改**:不動程式,寫進報告交給 Claude。
+
+## 8. Claude 子代理
+
+適用本工作區所有專案(各專案 `AGENT.md` 同步收錄;以 `giga-api-gateway-bff/AGENT.md` §10.9 為準)。**只適用 Claude Code**,Gemini 等其他 AI 略過本節。
+
+子代理定義放在**使用者層級** `~/.claude/agents/`(Windows:`%USERPROFILE%\.claude\agents\`),所有專案共用;範本在 `giga-api-gateway-bff/docs/claude-agents/`。
+
+| 子代理 | 用途 | 模型 | 權限 |
+| --- | --- | --- | --- |
+| `explore` | 快速搜尋、分析大型程式碼庫結構 | `haiku`(Haiku 5.5) | 唯讀 |
+| `code-reviewer` | 檢查程式碼品質、命名與最佳實踐 | `sonnet`(Sonnet 5.5) | 唯讀 |
+| `security-auditor` | 偵測安全漏洞(硬編碼密鑰、注入、權限缺漏、不安全的 API) | `opus`(Opus 5.5) | 唯讀 |
+| `debugger` | 追蹤錯誤日誌,做根本原因分析 | `sonnet`(Sonnet 5.5) | 唯讀 |
+| `test-runner` | 執行既有測試並分析覆蓋率 | `haiku`(Haiku 5.5) | 唯讀(只執行指令,不改檔) |
+| `refactor-assistant` | 安全地重構與拆分模組 | `sonnet`(Sonnet 5.5) | 可修改檔案 |
+
+**開工前檢查**(每個工作階段一次):
+
+1. 確認 `~/.claude/agents/` 有上表 6 個檔案(檔名是「子代理名稱 + `.md`」)。
+2. 缺少任何一個時,**先列出缺少的子代理,詢問使用者是否建立**;未經同意不要建立。使用者不建立時照常工作,改由主對話自己做。
+3. 使用者同意後,從範本複製缺少的檔案;**已存在的同名檔不覆蓋**(內容不同時列出差異,詢問是否更新)。在工作區根目錄執行:
+
+   ```bash
+   mkdir -p ~/.claude/agents && cp -n giga-api-gateway-bff/docs/claude-agents/*.md ~/.claude/agents/
+   ```
+
+   沒有 clone `giga-api-gateway-bff` 時,說明「範本未讀取」,詢問使用者要先 clone,還是依上表欄位建立。
+4. 建立後告訴使用者:**重新開啟 Claude Code 工作階段**後子代理才會載入。
+
+何時使用哪個子代理、委派時要交代的規則,見 `giga-api-gateway-bff/AGENT.md` §10.9。
