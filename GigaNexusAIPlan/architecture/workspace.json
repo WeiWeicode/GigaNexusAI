@@ -176,10 +176,10 @@
       "status": "active",
       "repo": null,
       "detail": null,
-      "summary": "Gateway 自有資料庫(schema gw):路由、上游、權限、使用者、稽核。內網不加密連線;只能用 2012 語法。",
+      "summary": "Gateway 自有資料庫(schema gw):路由、上游、權限、使用者、稽核。附件服務的少量資料表放在同庫獨立 schema file_svc(規劃中)。內網不加密連線;只能用 2012 語法。",
       "tech": ["SQL Server 2012 Standard"],
       "endpoints": [],
-      "docs": ["giga-api-gateway-bff/docs/DATABASE.md"]
+      "docs": ["giga-api-gateway-bff/docs/DATABASE.md", "giga-file-service/docs/DATABASE.md"]
     },
     {
       "id": "sql-ita",
@@ -208,20 +208,6 @@
       "tech": ["MongoDB 7", "Redis 7"],
       "endpoints": [],
       "docs": ["RustIt/docs/INTEGRATION-PLAN.md §3"]
-    },
-    {
-      "id": "sql-file",
-      "name": "giganexus_file",
-      "label": "SQL Server 2012",
-      "category": "data",
-      "kind": "datastore",
-      "status": "planned",
-      "repo": null,
-      "detail": null,
-      "summary": "附件服務自有資料庫:file_object(檔案主表)、file_access_log(操作紀錄)、legacy_file_map(舊系統對照)。正式 giganexus_file,測試 + 開發 giganexus_file_test;只能用 2012 語法。",
-      "tech": ["SQL Server 2012 Standard"],
-      "endpoints": [],
-      "docs": ["giga-file-service/docs/DATABASE.md"]
     },
     {
       "id": "file-storage",
@@ -371,7 +357,7 @@
     { "from": "giga-api-gateway-bff", "to": "giga-file-service", "type": "proxy", "label": "/api/file/*(上傳經 Nginx auth_request 直送,≤ 50 MB)", "status": "planned" },
     { "from": "giga-file-service", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "planned" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "Gateway 管理 › 檔案管理:/api/file/*", "status": "planned" },
-    { "from": "giga-file-service", "to": "sql-file", "type": "data", "label": "檔案主表 / 操作紀錄 / 舊系統對照", "status": "planned" },
+    { "from": "giga-file-service", "to": "sql-gw", "type": "data", "label": "schema file_svc:檔案主表 / 操作紀錄 / 舊系統對照(Drizzle,自有帳號只授權 file_svc)", "status": "planned" },
     { "from": "giga-file-service", "to": "file-storage", "type": "data", "label": "WSL 實體檔 + NAS 排程補傳", "status": "planned" },
     { "from": "giga-file-service", "to": "bpm", "type": "readonly", "label": "BPM 附件:NaNa NoCmDocument + 5144 取檔", "status": "planned" },
     { "from": "giga-file-service", "to": "portalsolar", "type": "readonly", "label": "166 檔案單向同步(原檔名 → UUID)", "status": "planned" },

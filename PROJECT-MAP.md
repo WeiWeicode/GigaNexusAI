@@ -76,7 +76,7 @@ flowchart TB
         DB_BPM[("SQL Server 2019<br/>BPM 人事組織與簽核 (唯讀)")]
         RedisCache[("Redis 7<br/>路由快照 / Session / 限流 / 佇列")]
         AD_Domain[("Windows AD (3 網域)<br/>gsc / gsmc / ygdmc")]
-        DB_FILE[("附件服務儲存(規劃中)<br/>SQL Server 2012 giganexus_file<br/>WSL /srv/giga-files + NAS 備份")]
+        DB_FILE[("附件服務儲存(規劃中)<br/>giganexus_gw schema file_svc<br/>WSL /srv/giga-files + NAS 備份")]
         DB_ITA[("ItAgentBack 儲存(測試區運作中)<br/>SQL Server 2012 giganexus_It_Agent (永久)<br/>MongoDB 7 (快照歷史) / Redis 7 (在線狀態)")]
     end
 
@@ -124,7 +124,7 @@ flowchart TB
 | [`giga-Portal`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-Portal) | **GigaNexus 員工入口網** | • 集團員工單一登入入口 (`/login`)<br/>• 首頁儀表板、待辦事項、個人資料<br/>• 跨應用切換器 (`GAppSwitcher`)<br/>• 未來 portal-api (Port 51271) 載體 | 前端: Vue 3 + Vite + TypeScript (科技綠風格)<br/>後端: `portal-api` (規劃中) | 前端: `:443/` (dev `:5179`)<br/>後端: `:51271` (`/api/portal/*`) | • 依賴 `giga-api-gateway-bff` 登入與 `/me`<br/>• 依賴 `GigaItApp` 設定其選單與按鈕權限<br/>• 包含跳轉至 `GigaItApp` 等系統的導航起點 |
 | [`GigaItApp`](file:///d:/檔案分享/程式碼/GigaNexusAI/GigaItApp) | **GigaNexus IT 管理系統** | • IT 部門內部專用管理後台(單一入口)<br/>• Gateway 動態路由清單維護與發佈<br/>• **選單管理**:各應用目錄 / 選單 / Tab / 按鈕與綁定的 API<br/>• **權限設定**:角色 / 部門(職級門檻)/ 個人;權限查詢(唯讀)<br/>• 人員 / 部門 / 稽核 / 端點設備檢視<br/>• 畫面權限模型的範本 | 前端: Vue 3 + Vite (深色科技玻璃)<br/>後端: Fastify 5 + TypeScript (`itapp-api`) | 前端: `:443/it/` (dev `:5177`)<br/>後端: `:51291`(`/api/it/*` 經 BFF;過渡期 `/it/api/*`) | • 以使用者身分呼叫 `giga-api-gateway-bff` 的 `/api/admin/*`<br/>• 讀取並管理全平台 RBAC 與 API 路由<br/>• 透過 `/api/endpoint/*` 監控 `RustIt` 端點 |
 | [`RustIt`](file:///d:/檔案分享/程式碼/GigaNexusAI/RustIt) | **企業資產管理與端點控管** | • Windows 端點軟硬體資產蒐集 (WMI/Win32)<br/>• USB 控管 (WM_DEVICECHANGE/USBSTOR)<br/>• 軟體背景靜默派送、RustDesk 整合<br/>• 端點原生介面 (<90MB) 與托盤程式 | `RustAgent/`:Rust Cargo workspace(`collector`, `demo` [Tauri], `native` [egui];規劃 `agent`、`watchdog`、`tray`);`ItAgentBack/`:Node.js + Fastify Endpoint Server(規劃中;SQL Server `giganexus_It_Agent` + MongoDB + Redis) | Agent: `:9443` (mTLS, HTTPS + WebSocket)<br/>串流: `:443/ws/endpoint/*`<br/>後端目標: `:51240`, `:51241` | • Agent 透過 Gateway `:9443` 上報資料至 Endpoint Server<br/>• 資產資料呈現於 `GigaItApp` 設備清單<br/>• 報修與公告連動 `giga-Portal` 與 IT 服務台 |
-| [`giga-file-service`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-file-service) | **GigaNexus 附件服務**(規劃中,W11) | • 共用附件上傳 / 下載 / 清單 / 綁定 / 軟刪除,對外只用 UUID<br/>• WSL 存放 + NAS 排程備份<br/>• BPM 表單附件唯讀代理(NaNa + 5144)<br/>• 舊系統(filebackend / SMBbackend / 166 PortalSolar)UUID 對照、同步與舊格式相容層 | Fastify 5 + TypeScript + SQL Server 2012(`giganexus_file`) | 後端: `file-api` `:51272`(`/api/file/*` 經 BFF;上傳經 Nginx `auth_request` 直送) | • 依賴 `giga-api-gateway-bff` 路由、內部 Token、backend-sdk<br/>• 畫面在 `GigaItApp`「Gateway 管理 › 檔案管理」<br/>• 舊前端(BPM `FileUpload.vue` / `SPfileUpload.vue`)改打 `/api/file/compat/*` |
+| [`giga-file-service`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-file-service) | **GigaNexus 附件服務**(規劃中,W11) | • 共用附件上傳 / 下載 / 清單 / 綁定 / 軟刪除,對外只用 UUID<br/>• WSL 存放 + NAS 排程備份<br/>• BPM 表單附件唯讀代理(NaNa + 5144)<br/>• 舊系統(filebackend / SMBbackend / 166 PortalSolar)UUID 對照、同步與舊格式相容層 | Fastify 5 + TypeScript + Drizzle ORM + SQL Server 2012(`giganexus_gw` schema `file_svc`) | 後端: `file-api` `:51272`(`/api/file/*` 經 BFF;上傳經 Nginx `auth_request` 直送) | • 依賴 `giga-api-gateway-bff` 路由、內部 Token、backend-sdk<br/>• 畫面在 `GigaItApp`「Gateway 管理 › 檔案管理」<br/>• 舊前端(BPM `FileUpload.vue` / `SPfileUpload.vue`)改打 `/api/file/compat/*` |
 
 ---
 
