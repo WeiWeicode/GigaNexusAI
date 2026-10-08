@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-06",
+  "updated": "2026-10-08",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -68,6 +68,20 @@
       "tech": ["Node.js", "Express", "MongoDB 7", "Redis 7"],
       "endpoints": ["Ingest / Query :5132", "SSE :5133"],
       "docs": ["giga-observe/AGENT.md", "giga-observe/docs/PRD.md", "giga-api-gateway-bff/docs/MONITORING-PLAN.md"]
+    },
+    {
+      "id": "giga-file-service",
+      "name": "giga-file-service",
+      "label": "附件服務",
+      "category": "platform",
+      "kind": "repo",
+      "status": "planned",
+      "repo": "giga-file-service",
+      "detail": null,
+      "summary": "共用附件服務 file-api(W11,規劃中、尚無程式碼):上傳 / 下載 / 清單 / 綁定 / 軟刪除,對外只用 UUID;檔案存主機 WSL、排程備份 NAS;BPM 表單附件唯讀代理(NaNa + 5144);舊系統(filebackend / SMBbackend / 166 PortalSolar)UUID 對照與同步、舊格式相容層 /api/file/compat/*。畫面在 GigaItApp「Gateway 管理 › 檔案管理」。",
+      "tech": ["Node.js 22", "Fastify 5", "TypeScript", "SQL Server 2012"],
+      "endpoints": ["file-api :51272(/api/file/*,經 BFF;上傳經 Nginx auth_request 直送)"],
+      "docs": ["giga-file-service/AGENT.md", "giga-file-service/docs/PRD.md", "giga-file-service/docs/IMPL-PLAN.md"]
     },
     {
       "id": "GigaItApp",
@@ -196,6 +210,34 @@
       "docs": ["RustIt/docs/INTEGRATION-PLAN.md §3"]
     },
     {
+      "id": "sql-file",
+      "name": "giganexus_file",
+      "label": "SQL Server 2012",
+      "category": "data",
+      "kind": "datastore",
+      "status": "planned",
+      "repo": null,
+      "detail": null,
+      "summary": "附件服務自有資料庫:file_object(檔案主表)、file_access_log(操作紀錄)、legacy_file_map(舊系統對照)。正式 giganexus_file,測試 + 開發 giganexus_file_test;只能用 2012 語法。",
+      "tech": ["SQL Server 2012 Standard"],
+      "endpoints": [],
+      "docs": ["giga-file-service/docs/DATABASE.md"]
+    },
+    {
+      "id": "file-storage",
+      "name": "WSL 檔案 / NAS",
+      "label": "附件實體檔",
+      "category": "data",
+      "kind": "datastore",
+      "status": "planned",
+      "repo": null,
+      "detail": null,
+      "summary": "主機 WSL /srv/giga-files/{env}(UUID 命名,不放 /mnt/c);NAS 10.10.130.31 docker-folder/giga-files/{env} 排程補傳並驗 SHA-256,giga-files/legacy/portalsolar 為 166 原檔名鏡像。",
+      "tech": ["WSL2 ext4", "CIFS"],
+      "endpoints": [],
+      "docs": ["giga-file-service/docs/STORAGE.md"]
+    },
+    {
       "id": "redis",
       "name": "Redis 7",
       "label": "快取 / 佇列",
@@ -266,6 +308,20 @@
       "docs": ["giga-api-gateway-bff/docs/DATABASE.md §9"]
     },
     {
+      "id": "legacy-file-backends",
+      "name": "GeneralBackend 檔案服務",
+      "label": "filebackend / SMBbackend",
+      "category": "external",
+      "kind": "external",
+      "status": "active",
+      "repo": null,
+      "detail": null,
+      "summary": "舊檔案後端(122 主機 :5124 / :5125,WebAppDb.webFileUpload / smbFileUpload),呼叫者皆為 BPM 表單前端;程式不修改,由附件服務經 NAS 備份拉取歷史檔並以舊格式相容層取代後下線。",
+      "tech": ["Node.js", "SQL Server 2012"],
+      "endpoints": [":5124", ":5125"],
+      "docs": ["giga-file-service/docs/LEGACY-INVENTORY.md"]
+    },
+    {
       "id": "gitlab",
       "name": "GitLab",
       "label": "CI/CD + Registry",
@@ -312,6 +368,15 @@
     { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "endpoint-server", "to": "giga-observe", "type": "api", "label": "endpoint-api / endpoint-agent 紀錄與心跳(含 WebSocket 連線、在線數)", "status": "active" },
+    { "from": "giga-api-gateway-bff", "to": "giga-file-service", "type": "proxy", "label": "/api/file/*(上傳經 Nginx auth_request 直送,≤ 50 MB)", "status": "planned" },
+    { "from": "giga-file-service", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "planned" },
+    { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "Gateway 管理 › 檔案管理:/api/file/*", "status": "planned" },
+    { "from": "giga-file-service", "to": "sql-file", "type": "data", "label": "檔案主表 / 操作紀錄 / 舊系統對照", "status": "planned" },
+    { "from": "giga-file-service", "to": "file-storage", "type": "data", "label": "WSL 實體檔 + NAS 排程補傳", "status": "planned" },
+    { "from": "giga-file-service", "to": "bpm", "type": "readonly", "label": "BPM 附件:NaNa NoCmDocument + 5144 取檔", "status": "planned" },
+    { "from": "giga-file-service", "to": "portalsolar", "type": "readonly", "label": "166 檔案單向同步(原檔名 → UUID)", "status": "planned" },
+    { "from": "giga-file-service", "to": "legacy-file-backends", "type": "readonly", "label": "NAS 備份拉取歷史檔、舊格式相容層", "status": "planned" },
+    { "from": "giga-file-service", "to": "giga-observe", "type": "api", "label": "file-api 紀錄與心跳(backend-sdk monitor)", "status": "planned" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(observe.data.read)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-Portal", "type": "proxy", "label": "Nginx 託管 SPA /", "status": "active" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/auth/*、/api/auth/me、/api/portal/*", "status": "active" },

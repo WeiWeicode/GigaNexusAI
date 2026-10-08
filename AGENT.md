@@ -29,6 +29,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `GigaItApp/` | IT 管理系統(`/it/`);應用 / 選單 / Tab / 按鈕權限設定、端點管理 | `AGENT.md`、`docs/PROJECT-MAP.md` |
 | `RustIt/` | Windows 端點資產蒐集與控管:`RustAgent/`(Rust:Agent、托盤)、`ItAgentBack/`(Node.js:Endpoint Server,測試區 2026-10-07 起運作) | `AGENT.md`、`docs/PROJECT-MAP.md`、`docs/INTEGRATION-PLAN.md` |
 | `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
+| `giga-file-service/` | 附件服務(W11,規劃中、尚無程式碼):`file-api` :51272,UUID 上傳 / 下載、WSL + NAS 備份、BPM 附件唯讀、舊系統對照與舊格式相容層;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `AGENT.md`、`docs/PRD.md`、`docs/PROJECT-MAP.md` |
 | `GigaNexusAIPlan/` | 平台建置甘特圖(NexusPlan)與**架構圖網站**、架構資料 | `README.md`、`architecture/README.md` |
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 
