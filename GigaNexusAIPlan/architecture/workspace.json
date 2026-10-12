@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-08",
+  "updated": "2026-10-12",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -365,8 +365,8 @@
     { "from": "giga-file-service", "to": "giga-observe", "type": "api", "label": "file-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(observe.data.read)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-Portal", "type": "proxy", "label": "Nginx 託管 SPA /", "status": "active" },
-    { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/auth/*、/api/auth/me、/api/portal/*", "status": "active" },
-    { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit", "status": "active" },
+    { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/auth/*、/api/auth/me(menus:選單目錄 / 名稱以 BFF 為準)、/api/notify/* 與 /ws/notify?app=portal(通知與公告)、/api/telemetry/web(portal-web 健康度)、/api/portal/*", "status": "active" },
+    { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit(GitLab npm Registry)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "GigaItApp", "type": "proxy", "label": "託管 /it/;/it/api/* 直轉 itapp-api(v0.7 改經 BFF)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/admin/*(服務帳號)、/api/endpoint/*", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit", "status": "active" },
