@@ -50,10 +50,10 @@
       "status": "active",
       "repo": "giga-Portal",
       "detail": null,
-      "summary": "員工單一登入頁(/login)、首頁、個人服務、簽核、公告;應用切換(GAppSwitcher)起點。portal-api(51271)規劃中。",
+      "summary": "員工單一登入頁(/login)、首頁、個人服務、簽核、公告;應用切換(GAppSwitcher)起點。portal-api(51271)規劃完成(PORTAL-API-PLAN v0.3):人事 / TIPTOP 來源顯示「系統轉移中」;測試區讀寫 giganexus_gw_test 的舊庫複本 src_*、新表放 schema portal;2027-01 與舊系統並行,正式區直接讀寫 220 原庫;BPM 唯讀直讀 NaNa。",
       "tech": ["Vue 3", "Vite", "TypeScript"],
       "endpoints": ["/(含 /login、/register、/reset-password)", "portal-api :51271 → /api/portal/*(規劃)"],
-      "docs": ["giga-Portal/AGENT.md", "giga-Portal/docs/PROJECT-MAP.md", "giga-Portal/docs/ARCHITECTURE.md"]
+      "docs": ["giga-Portal/AGENT.md", "giga-Portal/docs/PROJECT-MAP.md", "giga-Portal/docs/ARCHITECTURE.md", "giga-Portal/docs/PORTAL-API-PLAN.md", "giga-Portal/docs/DATABASE-MAP.md"]
     },
     {
       "id": "giga-observe",
@@ -176,7 +176,7 @@
       "status": "active",
       "repo": null,
       "detail": null,
-      "summary": "Gateway 自有資料庫(schema gw):路由、上游、權限、使用者、稽核。附件服務的資料表放在同庫獨立 schema file_svc(測試庫已上線)。內網不加密連線;只能用 2012 語法。",
+      "summary": "Gateway 自有資料庫(schema gw):路由、上游、權限、使用者、稽核。附件服務的資料表放在同庫獨立 schema file_svc(測試庫已上線);入口網新表放 schema portal,測試庫另有 220 舊庫複本 src_*(PortalSolar、LOS、Budget、LearnDB、Safety 等 10 庫、約 3.6 GB,2026-10-12 複製,可重跑重置)。內網不加密連線;只能用 2012 語法。",
       "tech": ["SQL Server 2012 Standard"],
       "endpoints": [],
       "docs": ["giga-api-gateway-bff/docs/DATABASE.md", "giga-file-service/docs/DATABASE.md"]
@@ -288,7 +288,7 @@
       "status": "active",
       "repo": null,
       "detail": null,
-      "summary": "舊入口帳號表,只在舊帳號首次登入時比對密碼並遷移為本機帳號。",
+      "summary": "舊入口網(old_PortalSolar)在 220 的業務庫 PortalSolar 與同主機 LOS、Budget、Safety 等。Gateway 只讀 LoginData(舊帳號首次登入遷移);portal-api 2027-01 起與舊系統並行讀寫原表(不改結構)。",
       "tech": ["SQL Server 2012"],
       "endpoints": [],
       "docs": ["giga-api-gateway-bff/docs/DATABASE.md §9"]
@@ -366,6 +366,9 @@
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(observe.data.read)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-Portal", "type": "proxy", "label": "Nginx 託管 SPA /", "status": "active" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/auth/*、/api/auth/me(menus:選單目錄 / 名稱以 BFF 為準)、/api/notify/* 與 /ws/notify?app=portal(通知與公告)、/api/telemetry/web(portal-web 健康度)、/api/portal/*", "status": "active" },
+    { "from": "giga-Portal", "to": "sql-gw", "type": "data", "label": "portal-api:schema portal(新表)+ 測試區舊庫複本 src_*(自有帳號 portal_app)", "status": "planned" },
+    { "from": "giga-Portal", "to": "portalsolar", "type": "data", "label": "portal-api 正式區並行讀寫 PortalSolar / LOS / Budget / Safety 原表(2027-01)", "status": "planned" },
+    { "from": "giga-Portal", "to": "bpm", "type": "readonly", "label": "portal-api:NaNa 待簽核 / 簽核資訊(唯讀帳號 portal_bpm_ro;191 / 190)", "status": "planned" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit(GitLab npm Registry)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "GigaItApp", "type": "proxy", "label": "託管 /it/;/it/api/* 直轉 itapp-api(v0.7 改經 BFF)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/admin/*(服務帳號)、/api/endpoint/*", "status": "active" },
