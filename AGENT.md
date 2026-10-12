@@ -25,7 +25,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | 資料夾 | 定位 | 先讀 |
 | --- | --- | --- |
 | `giga-api-gateway-bff/` | Gateway:Nginx、BFF、路由表、`@giganexus/web-kit`、`@giganexus/backend-sdk`。**所有專案的上位規範** | `AGENT.md`(跨專案規則在 §10)、`docs/PROJECT-MAP.md` |
-| `giga-Portal/` | 員工入口網(`/`,含 `/login`);應用切換起點 | `AGENT.md`、`docs/PROJECT-MAP.md` |
+| `giga-Portal/` | 員工入口網(`/`,含 `/login`);應用切換起點。前端框架已上測試區(2026-10-12),下一階段 portal-api | `AGENT.md`、`docs/HANDOFF.md`、`docs/PROJECT-MAP.md` |
 | `GigaItApp/` | IT 管理系統(`/it/`);應用 / 選單 / Tab / 按鈕權限設定、端點管理 | `AGENT.md`、`docs/PROJECT-MAP.md` |
 | `RustIt/` | Windows 端點資產蒐集與控管:`RustAgent/`(Rust:Agent、托盤)、`ItAgentBack/`(Node.js:Endpoint Server,測試區 2026-10-07 起運作) | `AGENT.md`、`docs/PROJECT-MAP.md`、`docs/INTEGRATION-PLAN.md` |
 | `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
