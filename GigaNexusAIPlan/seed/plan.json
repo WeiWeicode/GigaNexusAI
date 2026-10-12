@@ -40,7 +40,7 @@
     { "id": "W4-4", "workstreamId": "W4", "name": "一鍵遠端協助、操作稽核紀錄", "owner": "提案人", "start": "2027-03-13", "end": "2027-04-05", "description": "串 RustDesk，留存紀錄" },
     { "id": "W5-1", "workstreamId": "W5", "name": "前後端架構規劃", "owner": "佳緯", "start": "2026-10-05", "end": "2026-10-16", "progress": 100, "status": "done", "description": "架構文件" },
     { "id": "W5-2", "workstreamId": "W5", "name": "前端架構（Canvas UI 移植、路由、狀態、API 層）", "owner": "佳緯", "start": "2026-10-27", "end": "2026-11-18", "description": "可部署骨架" },
-    { "id": "W5-3", "workstreamId": "W5", "name": "後端架構（經 BFF、SSO 整合）", "owner": "佳緯", "start": "2026-10-27", "end": "2026-11-18", "description": "portal-api 骨架(P0-3):Gateway 後端樣本、內部 Token、自動註冊、monitor、測試區部署;來源前綴切換 src_* / 原庫(PORTAL-API-PLAN §3)" },
+    { "id": "W5-3", "workstreamId": "W5", "name": "後端架構（經 BFF、SSO 整合）", "owner": "佳緯", "start": "2026-10-27", "end": "2026-11-18", "progress": 60, "status": "in_progress", "description": "portal-api 骨架(P0-3):Gateway 後端樣本、內部 Token、自動註冊、monitor、測試區部署;來源前綴切換 src_* / 原庫(PORTAL-API-PLAN §3)" },
     { "id": "W5-M", "workstreamId": "W5", "name": "◆ 交接：佳緯轉 IT 端點、資料交 Eric", "owner": "佳緯", "start": "2026-11-21", "end": "2026-11-21", "type": "milestone", "description": "交接文件、範例 API" },
     { "id": "W5-4", "workstreamId": "W5", "name": "資料串接(個人資訊、行政資源、公告、簽核、主管、ESH、臨時服務)", "owner": "Eric", "start": "2026-11-24", "end": "2026-12-27", "description": "PORTAL-API-PLAN P1–P7;人事 / TIPTOP 來源(人事、出勤、薪資、資產)暫不做,前端顯示「系統轉移中」(D-1);郵件審核退場" },
     { "id": "W5-5", "workstreamId": "W5", "name": "測試、UAT、上線取代 PortalSolar", "owner": "Eric", "start": "2026-12-03", "end": "2026-12-28", "description": "正式上線" },
