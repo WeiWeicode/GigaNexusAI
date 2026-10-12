@@ -2,6 +2,8 @@
 
 本目錄提供 GigaNexusAI 全專案至公司內部 NAS (`\\10.10.130.31\docker-folder\code\GigaNexusAI`) 的**鏡像備份**與**同仁拉取**執行工具。
 
+存放Docker檔案的NAS	docker-backup	@mZ4455!			\\10.10.130.31\docker-folder
+
 ---
 
 ## 📁 檔案清單與用途
