@@ -45,6 +45,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 4. **架構有變就更新架構資料**:新增專案 / 關係、模組搬移、資料表變更後,同步修改 `GigaNexusAIPlan/architecture/*.json`,並執行 `npm run arch:check`(在 `GigaNexusAIPlan/`)。
 5. **AI 分工**:寫程式、寫測試、寫文件交給 Claude;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker(見 §7)。
 6. **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 6 個子代理,缺少時先詢問使用者是否建立(見 §8)。
+7. **Git 分支與推送**:開發在 `feature/*` 等工作分支;`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併,AI 不得推送 `develop` / `main`、不得 force push(`giga-api-gateway-bff/AGENT.md` §10.10)。同仁第一次設定與流程見 [`BackToNas/同仁開發指南.md`](BackToNas/同仁開發指南.md)。
 
 ## 5. 公司主機連線
 
@@ -87,7 +88,7 @@ Host host2
 
 ## 6. 本 repo(工作區文件)收錄範圍
 
-GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`、`PROJECT-MAP.md`、`GigaNexusAIPlan/`。其他專案各自是獨立 repo,不收進來(見 `.gitignore`)。
+GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.md`、`CLAUDE.md`)、`PROJECT-MAP.md`、`GigaNexusAIPlan/`、`BackToNas/`。其他專案各自是獨立 repo,不收進來(見 `.gitignore`)。
 
 工程師下載本 repo 只為看架構時,使用 `npm run arch`:只顯示架構圖,不顯示專案進度、不能編輯,也不需要資料庫。
 
