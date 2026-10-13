@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-12",
+  "updated": "2026-10-13",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -134,10 +134,10 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "Windows 端點資產蒐集(WMI / Win32)、USB 控管、軟體派送、RustDesk 整合;Agent(SYSTEM 服務)、Watchdog 與托盤程式;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,2026-10-06 決定)。Agent 以 HTTPS 回報、WebSocket 接收指令(2026-10-01 決定,不用 gRPC)。Cargo workspace:collector、agent(rustit-agent,前景執行)、native(egui)、demo(Tauri),規劃 tray、watchdog。2026-10-07 測試區接通:Agent 經 :9443 回報、GigaItApp 電腦清單可見(整合計畫 M4)。",
-      "tech": ["Rust", "egui", "Tauri", "Node.js"],
+      "summary": "Windows 端點資產蒐集(WMI / Win32)、監測、指令、升級、軟體派送;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,ADR 0004)。Agent 以 HTTPS 回報、WebSocket 接收指令(不用 gRPC)。基本階段完成(2026-10-07 測試區:Agent 經 :9443 回報、GigaItApp 電腦清單可見)。第二階段 PLATFORM-PLAN(2026-10-13 定案,P1–P8):監控服務(Agent + Watchdog,SYSTEM、裝置憑證)與使用者端程式(rustit-desktop,登入者身分)分開;本機加密持久化與離線紀錄;軟體庫 NAS RustIT\\software 由後端唯讀提供。Cargo workspace:collector、agent(前景執行,P1 服務化)、demo(Tauri,P8 改名 desktop);規劃 common、watchdog;native(egui)P1 移除。",
+      "tech": ["Rust", "Tauri", "Node.js"],
       "endpoints": ["Agent → :9443 mTLS(HTTPS 回報 + WebSocket 指令)"],
-      "docs": ["RustIt/README.md", "RustIt/AGENT.md", "RustIt/docs/PROJECT-MAP.md", "RustIt/docs/PRD.md", "RustIt/docs/INTEGRATION-PLAN.md"]
+      "docs": ["RustIt/README.md", "RustIt/AGENT.md", "RustIt/docs/PROJECT-MAP.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/docs/HANDOFF.md", "RustIt/docs/PRD.md", "RustIt/docs/INTEGRATION-PLAN.md"]
     },
     {
       "id": "endpoint-server",
@@ -148,10 +148,10 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。測試區 2026-10-07 起運作(主機 2 容器 endpoint-server,CI develop 部署);指令派發、螢幕串流尚未實作。",
+      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。測試區 2026-10-07 起運作(主機 2 容器 endpoint-server,CI develop 部署)。規劃(PLATFORM-PLAN):/sync 補傳與離線紀錄(P2)、指令派發(P4)、事件與告警(P5)、版本與發佈環(P6)、軟體目錄與套件下載(P7,NAS 唯讀掛載);螢幕串流屬路線圖。",
       "tech": ["Node.js", "Fastify", "WebSocket", "MongoDB", "Redis"],
       "endpoints": [":51240 REST(/api/endpoint/* 經 BFF)", ":51241 HTTPS / WebSocket(經 :9443)", "/ws/endpoint/*(Nginx auth_request 後直連)"],
-      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/INTEGRATION-PLAN.md", "RustIt/docs/decisions/0004-node-endpoint-server.md"]
+      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/ItAgentBack/docs/DB_SCHEMA.md", "RustIt/docs/decisions/0004-node-endpoint-server.md"]
     },
     {
       "id": "agent-watchdog",
@@ -162,10 +162,24 @@
       "status": "planned",
       "repo": "RustIt",
       "detail": null,
-      "summary": "端點電腦上看守 Agent 的存活、健康、版本,自己經 :9443 以 HTTPS 上報;與 Agent 以本機具名管道溝通。原規劃 C#,2026-10-01 改為 Rust,併入 RustIt(crates/watchdog,規劃中)。",
+      "summary": "端點電腦上看守 Agent 的存活、健康、版本,偵測 Agent 被停用 / 移除,執行 Agent / 使用者端程式升級與還原(發佈環);自己經 :9443 以 HTTPS 上報;與 Agent 以本機具名管道溝通。Rust,RustIt crates/watchdog(PLATFORM-PLAN P5、P6)。",
       "tech": ["Rust"],
       "endpoints": ["→ :9443"],
-      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md"]
+      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/PLATFORM-PLAN.md"]
+    },
+    {
+      "id": "rustit-desktop",
+      "name": "RustIt 使用者端程式",
+      "label": "托盤 + 視窗",
+      "category": "endpoint",
+      "kind": "service",
+      "status": "planned",
+      "repo": "RustIt",
+      "detail": null,
+      "summary": "端點上以登入者身分執行的托盤程式(由 Demo 改造,RustIt crates/desktop):我的電腦(電腦名稱、IP、登入人員,供共用電腦報修 / 遠端協助回報)、公告通知(BFF /ws/notify)、嵌入 Gateway 網頁應用(報修、入口網、BPM、信箱、AI)。與監控服務分開發版;只經唯讀管道讀 Agent 狀態;關閉不影響監控(PLATFORM-PLAN P8)。",
+      "tech": ["Rust", "Tauri 2", "WebView2"],
+      "endpoints": ["→ :443 使用者登入、/ws/notify", "唯讀管道 giganexus-agent-user-v1"],
+      "docs": ["RustIt/docs/PLATFORM-PLAN.md"]
     },
     {
       "id": "sql-gw",
@@ -382,11 +396,14 @@
     { "from": "RustIt", "to": "giga-api-gateway-bff", "type": "mtls", "label": "Agent :9443 mTLS HTTPS / WebSocket(心跳 / 資產上報;指令規劃)", "status": "active" },
     { "from": "agent-watchdog", "to": "giga-api-gateway-bff", "type": "mtls", "label": ":9443 健康上報", "status": "planned" },
     { "from": "agent-watchdog", "to": "RustIt", "type": "api", "label": "本機具名管道看守 Agent", "status": "planned" },
-    { "from": "RustIt", "to": "giga-Portal", "type": "nav", "label": "托盤報修 / 公告", "status": "planned" },
+    { "from": "rustit-desktop", "to": "giga-Portal", "type": "nav", "label": "嵌入入口網 / 報修 / 公告", "status": "planned" },
+    { "from": "rustit-desktop", "to": "giga-api-gateway-bff", "type": "api", "label": ":443 使用者登入、/ws/notify 公告通知", "status": "planned" },
+    { "from": "rustit-desktop", "to": "RustIt", "type": "api", "label": "唯讀管道讀 Agent 狀態、接收提示", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "sql-gw", "type": "data", "label": "Drizzle 讀寫(不加密)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "redis", "type": "data", "label": "快照 / Pub/Sub / 快取 / 限流", "status": "active" },
     { "from": "endpoint-server", "to": "sql-ita", "type": "data", "label": "mssql 讀寫(不加密、手寫 migration)", "status": "active" },
     { "from": "endpoint-server", "to": "ita-mongo-redis", "type": "data", "label": "快照歷史 / 在線狀態", "status": "active" },
+    { "from": "endpoint-server", "to": "file-storage", "type": "data", "label": "NAS RustIT 軟體庫 / 版本檔唯讀掛載(PLATFORM-PLAN P6、P7)", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "ad", "type": "data", "label": "LDAP bind 驗證 + 群組", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "bpm", "type": "readonly", "label": "人事主來源(加密)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "los", "type": "readonly", "label": "人事補充 / 公司 / 兼任", "status": "active" },
