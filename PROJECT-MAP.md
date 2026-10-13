@@ -1,6 +1,6 @@
 # GigaNexus 全專案架構地圖與彼此對應關係 (PROJECT-MAP)
 
-> **最後更新**：2026-10-12(員工入口網 giga-Portal 框架對齊 GigaItApp 並通過測試區驗收:選單目錄 `portal.group.*`、Tab 權限、一頁一碼、`it-admin` 可查看入口網、通知鈴鐺與首頁最新公告、web-kit 改 npm Registry;下一階段 portal-api,見 giga-Portal/docs/HANDOFF.md)。2026-10-08(附件服務 giga-file-service 測試區上線:F1 上傳 / 下載 / 綁定 / 刪除(上傳經 Nginx 直送,單檔 30 MB)、F2 NAS 備份、F6 BPM 附件(測試區 191 / 正式區 190)、GigaItApp「Gateway 管理 › 檔案管理」三個 Tab;Gateway 修正 X-Forwarded-For 順序;甘特圖 W11。2026-10-07:通知中心 N1–N3 測試區實測通過:BFF 公告 API / 廣播 / Email、web-kit 0.3.0、GigaItApp 通知中心;公告對象限分階段開放公司;見 giga-api-gateway-bff/docs/NOTIFY-PLAN.md §11.3–§11.4。RustIt 測試區接通:Agent 經 :9443 回報 ItAgentBack,GigaItApp 電腦清單可見;見 RustIt/docs/INTEGRATION-PLAN.md M4)  
+> **最後更新**：2026-10-13(RustIt 第二階段框架 `RustIt/docs/PLATFORM-PLAN.md` 定案:監控服務與使用者端程式分開、本機持久化與離線紀錄、指令 / 監測 / 升級 / 軟體派送,階段 P1–P8)。2026-10-12(員工入口網 giga-Portal 框架對齊 GigaItApp 並通過測試區驗收:選單目錄 `portal.group.*`、Tab 權限、一頁一碼、`it-admin` 可查看入口網、通知鈴鐺與首頁最新公告、web-kit 改 npm Registry;下一階段 portal-api,見 giga-Portal/docs/HANDOFF.md)。2026-10-08(附件服務 giga-file-service 測試區上線:F1 上傳 / 下載 / 綁定 / 刪除(上傳經 Nginx 直送,單檔 30 MB)、F2 NAS 備份、F6 BPM 附件(測試區 191 / 正式區 190)、GigaItApp「Gateway 管理 › 檔案管理」三個 Tab;Gateway 修正 X-Forwarded-For 順序;甘特圖 W11。2026-10-07:通知中心 N1–N3 測試區實測通過:BFF 公告 API / 廣播 / Email、web-kit 0.3.0、GigaItApp 通知中心;公告對象限分階段開放公司;見 giga-api-gateway-bff/docs/NOTIFY-PLAN.md §11.3–§11.4。RustIt 測試區接通:Agent 經 :9443 回報 ItAgentBack,GigaItApp 電腦清單可見;見 RustIt/docs/INTEGRATION-PLAN.md M4)  
 > **涵蓋專案**：`giga-api-gateway-bff` (網關與身分中心)、`giga-Portal` (員工入口網)、`GigaItApp` (IT 部門管理系統)、`RustIt` (端點資產與控管平台)、`giga-file-service` (附件服務,規劃中)  
 > **上位規範**：本工作區所有專案之架構、通訊、身分、權限與介面規範以 [`giga-api-gateway-bff/docs/`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-api-gateway-bff/docs/) 為唯一上位標準（PRD v0.7）。
 
@@ -123,7 +123,7 @@ flowchart TB
 | [`giga-api-gateway-bff`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-api-gateway-bff) | **GigaNexus Gateway & BFF** | • 全集團地端唯一反向代理網關<br/>• 身分驗證中心 (AD/BPM/LOS/本機)<br/>• 資料庫驅動動態路由與權限檢查點<br/>• 內部短效 JWT 發放、通知與審計<br/>• 前後端共用套件提供者 (`web-kit`, `sdk/node`) | Nginx + Node.js 22 (Fastify 5) + Drizzle ORM + Redis 7 + SQL Server 2012 | • `:443` (HTTPS/WSS)<br/>• `:9443` (Agent mTLS)<br/>• 內部叢集容器 (`bff-1`, `bff-2`) | **所有子系統的核心骨幹**<br/>所有前端 SPA 經它託管，所有業務 API 經由它做 RBAC 鑑權與轉發。 |
 | [`giga-Portal`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-Portal) | **GigaNexus 員工入口網** | • 集團員工單一登入入口 (`/login`)<br/>• 首頁(待辦事項、個人秘書、最新公告、輪播)、個人資訊、主管專區、ESH 等 7 大項 44 頁(內容 mock)<br/>• 選單 / Tab / 按鈕權限同 GigaItApp(BFF 選單目錄);通知鈴鐺<br/>• 跨應用切換器 (`GAppSwitcher`)<br/>• 下一階段 portal-api (Port 51271) | 前端: Vue 3 + Vite + TypeScript (科技綠風格)<br/>後端: `portal-api` (規劃中) | 前端: `:443/` (dev `:5179`)<br/>後端: `:51271` (`/api/portal/*`) | • 依賴 `giga-api-gateway-bff` 登入與 `/me`<br/>• 依賴 `GigaItApp` 設定其選單與按鈕權限<br/>• 包含跳轉至 `GigaItApp` 等系統的導航起點 |
 | [`GigaItApp`](file:///d:/檔案分享/程式碼/GigaNexusAI/GigaItApp) | **GigaNexus IT 管理系統** | • IT 部門內部專用管理後台(單一入口)<br/>• Gateway 動態路由清單維護與發佈<br/>• **選單管理**:各應用目錄 / 選單 / Tab / 按鈕與綁定的 API<br/>• **權限設定**:角色 / 部門(職級門檻)/ 個人;權限查詢(唯讀)<br/>• 人員 / 部門 / 稽核 / 端點設備檢視<br/>• 畫面權限模型的範本 | 前端: Vue 3 + Vite (深色科技玻璃)<br/>後端: Fastify 5 + TypeScript (`itapp-api`) | 前端: `:443/it/` (dev `:5177`)<br/>後端: `:51291`(`/api/it/*` 經 BFF;過渡期 `/it/api/*`) | • 以使用者身分呼叫 `giga-api-gateway-bff` 的 `/api/admin/*`<br/>• 讀取並管理全平台 RBAC 與 API 路由<br/>• 透過 `/api/endpoint/*` 監控 `RustIt` 端點 |
-| [`RustIt`](file:///d:/檔案分享/程式碼/GigaNexusAI/RustIt) | **企業資產管理與端點控管** | • Windows 端點軟硬體資產蒐集 (WMI/Win32)<br/>• USB 控管 (WM_DEVICECHANGE/USBSTOR)<br/>• 軟體背景靜默派送、RustDesk 整合<br/>• 端點原生介面 (<90MB) 與托盤程式 | `RustAgent/`:Rust Cargo workspace(`collector`, `demo` [Tauri], `native` [egui];規劃 `agent`、`watchdog`、`tray`);`ItAgentBack/`:Node.js + Fastify Endpoint Server(規劃中;SQL Server `giganexus_It_Agent` + MongoDB + Redis) | Agent: `:9443` (mTLS, HTTPS + WebSocket)<br/>串流: `:443/ws/endpoint/*`<br/>後端目標: `:51240`, `:51241` | • Agent 透過 Gateway `:9443` 上報資料至 Endpoint Server<br/>• 資產資料呈現於 `GigaItApp` 設備清單<br/>• 報修與公告連動 `giga-Portal` 與 IT 服務台 |
+| [`RustIt`](file:///d:/檔案分享/程式碼/GigaNexusAI/RustIt) | **企業資產管理與端點控管** | • Windows 端點軟硬體資產蒐集 (WMI/Win32)、健康與事件監測<br/>• 固定類型指令、Agent 分批升級、軟體背景靜默派送<br/>• 本機加密持久化與離線紀錄<br/>• 使用者端程式(托盤):我的電腦、公告、報修、嵌入應用<br/>• 第二階段計畫 `docs/PLATFORM-PLAN.md`(P1–P8) | `RustAgent/`:Rust Cargo workspace(`collector`、`agent` [測試區運作,P1 服務化]、`demo` [Tauri,P8 改為使用者端 `desktop`];規劃 `common`、`watchdog`;`native` [egui] P1 移除);`ItAgentBack/`:Node.js + Fastify Endpoint Server(測試區運作;SQL Server `giganexus_It_Agent` + MongoDB + Redis) | Agent: `:9443` (mTLS, HTTPS + WebSocket)<br/>串流: `:443/ws/endpoint/*`<br/>後端目標: `:51240`, `:51241` | • Agent 透過 Gateway `:9443` 上報資料至 Endpoint Server<br/>• 資產資料呈現於 `GigaItApp` 設備清單<br/>• 使用者端程式以使用者登入經 `:443` 嵌入 `giga-Portal`、收 BFF 公告 |
 | [`giga-file-service`](file:///d:/檔案分享/程式碼/GigaNexusAI/giga-file-service) | **GigaNexus 附件服務**(測試區上線 2026-10-08,W11) | • 共用附件上傳 / 下載 / 清單 / 綁定 / 軟刪除,對外只用 UUID(✅)<br/>• WSL 存放 + NAS 排程備份、SHA-256 驗證、還原 CLI(✅)<br/>• BPM 表單附件唯讀代理(NaNa + 5144;測試區 191 / 正式區 190,✅)<br/>• 舊系統(filebackend / SMBbackend / 166 PortalSolar)UUID 對照、同步與舊格式相容層(F4 / F7 規劃) | Fastify 5 + TypeScript + Drizzle ORM + SQL Server 2012(`giganexus_gw` schema `file_svc`) | 後端: `file-api` `:51272`(`/api/file/*` 經 BFF;上傳經 Nginx `auth_request` 直送) | • 依賴 `giga-api-gateway-bff` 路由、內部 Token、backend-sdk<br/>• 畫面在 `GigaItApp`「Gateway 管理 › 檔案管理」<br/>• 舊前端(BPM `FileUpload.vue` / `SPfileUpload.vue`)改打 `/api/file/compat/*` |
 
 ---
@@ -263,8 +263,8 @@ flowchart LR
 ```mermaid
 flowchart TD
     subgraph Endpoints ["端點電腦 (200+ 台 Windows)"]
-        Agent["RustIt Agent (SYSTEM 服務)<br/>• rustit-collector (WMI/Win32)<br/>• 軟硬體資料 / 60s 心跳 / USB 監聽"]
-        Tray["RustIt 托盤 (一般使用者)<br/>• 設備自我檢核<br/>• 報修單填寫 / 公告彈窗"]
+        Agent["RustIt Agent + Watchdog (SYSTEM 服務)<br/>• rustit-collector (WMI/Win32)<br/>• 軟硬體資料 / 30s 心跳 / USB 監聽<br/>• 本機加密持久化(離線紀錄)"]
+        Tray["RustIt 使用者端程式 (登入者,與監控分開)<br/>• 我的電腦:電腦名稱 / IP / 登入人員<br/>• 公告通知 / 報修 / 嵌入應用"]
         RDC["RustDesk Client (由 Agent 靜默安裝與守護)"]
     end
 
@@ -295,14 +295,16 @@ flowchart TD
     ItRemote <-->|"P2P 或內網中繼串流"| RDS
     ItRemote -.->|Web 串流模式| Port443_WS
 
-    Tray -.->|"提交工單"| PortalUser
+    Tray -.->|"使用者登入 :443(嵌入入口網、報修、公告)"| PortalUser
+    Agent -.->|"唯讀管道:Agent 狀態"| Tray
     EPS_REST -->|"派發指令: 軟體安裝/重新掃描"| EPS_Agent -->|WebSocket| Agent
 ```
 
-1. **資產自動回報**：`RustIt Agent` 執行 `collector`（取得 CPU、磁碟 SMART、主機板 UUID、軟體機碼、USB 狀態），每 60 秒心跳與開機掃描透過 Gateway `:9443` (mTLS) 回傳至 Endpoint Server。
+1. **資產自動回報**：`RustIt Agent` 執行 `collector`（取得 CPU、磁碟 SMART、主機板 UUID、軟體機碼、USB 狀態），每 30 秒心跳與開機掃描透過 Gateway `:9443` (mTLS) 回傳至 Endpoint Server;連不上時先寫本機加密持久化,連回後補傳並回報離線期間。
 2. **IT 設備清單監控**：IT 人員打開 `GigaItApp` 的「端點管理 ➔ 電腦清單」，前端呼叫 `/api/endpoint/devices`，由 BFF 驗證 `endpoint.device.read` 後轉交 Endpoint Server。
 3. **RustDesk 遠端整合**：IT 在 `GigaItApp` 點擊「遠端協助」，啟動 IT 電腦上的 RustDesk 並藉由自架伺服器連線到目標端點（密碼由後端動態管理，不直接對使用者暴露）。
-4. **服務台整合**：員工端若從 `RustIt Tray` 送出報修單，自動附帶本機資產編號，連動至 `giga-Portal` 待辦與 IT 服務單池。
+4. **服務台整合**：員工從 RustIt 使用者端程式(托盤)看到電腦名稱、IP、登入人員,可一鍵複製回報;送出報修單時自動附帶,連動至 `giga-Portal` 與 IT 服務單池(報修後端屬路線圖)。
+5. **監控與使用者操作分開**:Agent / Watchdog(SYSTEM、裝置憑證、`:9443`)與使用者端程式(登入者、`:443`)各自發版,使用者關閉托盤不影響監控;細節見 `RustIt/docs/PLATFORM-PLAN.md`。
 
 ---
 
