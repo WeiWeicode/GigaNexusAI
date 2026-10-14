@@ -52,7 +52,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | 主機 | IP | 系統 | 用途 | 帳號 |
 | --- | --- | --- | --- | --- |
 | 主機 1 | 10.10.130.123 | Ubuntu 22.04 | GitLab(`:80`)、Registry(`:5050`)、GitLab git SSH(`:2222`)、Portainer(`:9443`) | `user` |
-| 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13)、GitLab Runner、RustIt endpoint-server | `user` |
+| 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13 與 10.10.130.124(本機 Hyper-V 測試 VM 經 Default Switch NAT 後的來源))、GitLab Runner、RustIt endpoint-server | `user` |
 
 AI 以 SSH 金鑰 `~/.ssh/giganexus_ops`(公鑰已放入兩台 `user` 帳號)登入下指令。開發機 `~/.ssh/config` 建議設定:
 
