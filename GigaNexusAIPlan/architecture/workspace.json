@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-13",
+  "updated": "2026-10-15",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -92,7 +92,7 @@
       "status": "active",
       "repo": "GigaItApp",
       "detail": null,
-      "summary": "IT 部門管理後台(單一入口):選單管理(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、權限設定(角色 / 部門〔職級門檻〕/ 個人)、權限查詢(唯讀)、服務與路由、端點管理(經 BFF)。前端 /it/ + itapp-api(51291,/api/it/* 經 BFF)。畫面權限模型的範本。",
+      "summary": "IT 部門管理後台(單一入口):選單管理(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、權限設定(角色 / 部門〔職級門檻〕/ 個人)、權限查詢(唯讀)、服務與路由、端點管理(經 BFF:電腦清單、下達指令、指令紀錄、日誌下載)。前端 /it/ + itapp-api(51291,/api/it/* 經 BFF)。畫面權限模型的範本。",
       "tech": ["Vue 3", "Vite", "Fastify 5", "TypeScript"],
       "endpoints": ["/it/", "/it/api/* → itapp-api :51291(v0.7 規劃改 /api/it/* 經 BFF)"],
       "docs": ["GigaItApp/AGENT.md", "GigaItApp/docs/PROJECT-MAP.md", "GigaItApp/docs/ARCHITECTURE.md"]
@@ -134,7 +134,7 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "Windows 端點資產蒐集(WMI / Win32)、監測、指令、升級、軟體派送;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,ADR 0004)。Agent 以 HTTPS 回報、WebSocket 接收指令(不用 gRPC)。基本階段完成(2026-10-07 測試區:Agent 經 :9443 回報、GigaItApp 電腦清單可見)。第二階段 PLATFORM-PLAN(2026-10-13 定案,P1–P8):監控服務(Agent + Watchdog,SYSTEM、裝置憑證)與使用者端程式(rustit-desktop,登入者身分)分開;本機加密持久化與離線紀錄;軟體庫 NAS RustIT\\software 由後端唯讀提供。Cargo workspace:collector、agent(Windows 服務 GigaNexusAgent + 監控 MSI,P1 完成,2026-10-14 測試 VM 驗證)、common(Agent / Watchdog 共用)、demo(Tauri,P8 改名 desktop);規劃 watchdog;native(egui)已移除。",
+      "summary": "Windows 端點資產蒐集(WMI / Win32)、監測、指令、升級、軟體派送;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,ADR 0004)。Agent 以 HTTPS 回報、WebSocket 接收指令(不用 gRPC)。基本階段完成(2026-10-07 測試區:Agent 經 :9443 回報、GigaItApp 電腦清單可見)。第二階段 PLATFORM-PLAN(2026-10-13 定案,P1–P8):監控服務(Agent + Watchdog,SYSTEM、裝置憑證)與使用者端程式(rustit-desktop,登入者身分)分開;本機加密持久化與離線紀錄;軟體庫 NAS RustIT\\software 由後端唯讀提供。P2(本機加密暫存、離線補傳與 offline_period)、P4(指令通道:inventory.collect、agent.restart、message.show、agent.diagnose、logs.collect 日誌上傳、agent.log_level;GigaItApp 指令畫面與指令紀錄)2026-10-15 測試區 VM 驗證完成。Cargo workspace:collector、agent(Windows 服務 GigaNexusAgent + 監控 MSI,0.4.1)、common(Agent / Watchdog 共用)、demo(Tauri,P8 改名 desktop);規劃 watchdog;native(egui)已移除。",
       "tech": ["Rust", "Tauri", "Node.js"],
       "endpoints": ["Agent → :9443 mTLS(HTTPS 回報 + WebSocket 指令)"],
       "docs": ["RustIt/README.md", "RustIt/AGENT.md", "RustIt/docs/PROJECT-MAP.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/docs/HANDOFF.md", "RustIt/docs/PRD.md", "RustIt/docs/INTEGRATION-PLAN.md"]
@@ -148,9 +148,9 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。測試區 2026-10-07 起運作(主機 2 容器 endpoint-server,CI develop 部署)。規劃(PLATFORM-PLAN):/sync 補傳與離線紀錄(P2)、指令派發(P4)、事件與告警(P5)、版本與發佈環(P6)、軟體目錄與套件下載(P7,NAS 唯讀掛載);螢幕串流屬路線圖。",
+      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。測試區 2026-10-07 起運作(主機 2 容器 endpoint-server,CI develop 部署)。已完成:/sync 補傳與離線紀錄(P2)、指令派發(P4:ita.command / command_batch、WebSocket command / command_update、basic 指令 API、指令附檔 ita.command_file + Docker volume ita_command_files 保存 14 天)。規劃(PLATFORM-PLAN):事件與告警(P5)、版本與發佈環(P6)、軟體目錄與套件下載(P7,NAS 唯讀掛載);螢幕串流屬路線圖。",
       "tech": ["Node.js", "Fastify", "WebSocket", "MongoDB", "Redis"],
-      "endpoints": [":51240 REST(/api/endpoint/* 經 BFF)", ":51241 HTTPS / WebSocket(經 :9443)", "/ws/endpoint/*(Nginx auth_request 後直連)"],
+      "endpoints": [":51240 REST(/api/endpoint/* 經 BFF:電腦、指令、日誌下載)", ":51241 HTTPS / WebSocket(經 :9443;含指令附檔上傳)", "/ws/endpoint/*(Nginx auth_request 後直連)"],
       "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/ItAgentBack/docs/DB_SCHEMA.md", "RustIt/docs/decisions/0004-node-endpoint-server.md"]
     },
     {
@@ -385,7 +385,7 @@
     { "from": "giga-Portal", "to": "bpm", "type": "readonly", "label": "portal-api:NaNa 待簽核 / 簽核資訊(唯讀帳號 portal_bpm_ro;191 / 190)", "status": "planned" },
     { "from": "giga-Portal", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit(GitLab npm Registry)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "GigaItApp", "type": "proxy", "label": "託管 /it/;/it/api/* 直轉 itapp-api(v0.7 改經 BFF)", "status": "active" },
-    { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/admin/*(服務帳號)、/api/endpoint/*", "status": "active" },
+    { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "/api/admin/*(服務帳號)、/api/endpoint/*(電腦清單、指令、指令紀錄、日誌下載)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit", "status": "active" },
     { "from": "giga-Portal", "to": "GigaItApp", "type": "nav", "label": "應用切換 GAppSwitcher", "status": "active" },
     { "from": "GigaItApp", "to": "giga-Portal", "type": "nav", "label": "無權限導回 /?denied=it", "status": "active" },
@@ -393,7 +393,7 @@
     { "from": "biz-systems", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "adaptors", "type": "proxy", "label": "/api/bpm/*、/api/erp/*", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "endpoint-server", "type": "proxy", "label": "/api/endpoint/*、:9443 proxy_pass(/ws/endpoint/* 規劃)", "status": "active" },
-    { "from": "RustIt", "to": "giga-api-gateway-bff", "type": "mtls", "label": "Agent :9443 mTLS HTTPS / WebSocket(心跳 / 資產上報;指令規劃)", "status": "active" },
+    { "from": "RustIt", "to": "giga-api-gateway-bff", "type": "mtls", "label": "Agent :9443 mTLS HTTPS / WebSocket(心跳 / 資產上報 / 離線補傳;指令與日誌附檔上傳)", "status": "active" },
     { "from": "agent-watchdog", "to": "giga-api-gateway-bff", "type": "mtls", "label": ":9443 健康上報", "status": "planned" },
     { "from": "agent-watchdog", "to": "RustIt", "type": "api", "label": "本機具名管道看守 Agent", "status": "planned" },
     { "from": "rustit-desktop", "to": "giga-Portal", "type": "nav", "label": "嵌入入口網 / 報修 / 公告", "status": "planned" },
