@@ -53,6 +53,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | --- | --- | --- | --- | --- |
 | 主機 1 | 10.10.130.123 | Ubuntu 22.04 | GitLab(`:80`)、Registry(`:5050`)、GitLab git SSH(`:2222`)、Portainer(`:9443`) | `user` |
 | 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13 與 10.10.130.124(本機 Hyper-V 測試 VM 經 Default Switch NAT 後的來源))、GitLab Runner、RustIt endpoint-server | `user` |
+| 主機 3 | 10.10.130.122 | Windows 10(Docker Desktop WSL2,`GSMC-Docker`) | 正式區主機(`giganexus.gigasolar.com.tw`) | `Administrator` |
 
 AI 以 SSH 金鑰 `~/.ssh/giganexus_ops`(公鑰已放入兩台 `user` 帳號)登入下指令。開發機 `~/.ssh/config` 建議設定:
 
@@ -78,6 +79,13 @@ Host host2
     User user
     IdentityFile ~/.ssh/giganexus_ops
     IdentitiesOnly yes
+
+Host host3 10.10.130.122
+    HostName 10.10.130.122
+    Port 22
+    User Administrator
+    IdentityFile ~/.ssh/giganexus_ops
+    IdentitiesOnly yes
 ```
 
 - **登入主機 1 用 `ssh host1`,不要用 `ssh user@10.10.130.123`**:後者會套用上面的 `Port 2222`,連進 GitLab 容器的 sshd(OpenSSH 9.6 / Ubuntu 24.04),出現 `Permission denied (publickey)`,主機 1 的 `journalctl -u ssh` 也不會有紀錄。
@@ -85,6 +93,7 @@ Host host2
 - 主機 1 開著 **ufw(INPUT 預設 DROP)**,新增對外服務 port 要 `ufw allow`。2026-10-01 已放行 `3389/tcp`(xrdp)給 `10.10.0.0/16`。
 - SSH 登不進主機 1 時的救援方式:Portainer(`https://10.10.130.123:9443`)的 `host-rescue` 容器(特權,主機根目錄掛在 `/host`)→ Console 執行 `nsenter --mount=/host/proc/1/ns/mnt --uts=/host/proc/1/ns/uts --ipc=/host/proc/1/ns/ipc --net=/host/proc/1/ns/net -- bash`,即取得主機 root shell(提示字元為 `root@user-virtual-machine`)。
 - 主機 2 SSH 登入後預設是 PowerShell;Docker 在 WSL 內,用 `wsl -u root -e docker ...` 執行(WSL 預設帳號沒有 docker 權限)。
+- 主機 3(`10.10.130.122`)登入帳號為 `Administrator`(公鑰放在 `C:\ProgramData\ssh\administrators_authorized_keys`),SSH 登入後預設是 PowerShell。
 
 ## 6. 本 repo(工作區文件)收錄範圍
 
