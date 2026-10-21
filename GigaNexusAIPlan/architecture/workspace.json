@@ -134,7 +134,7 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "Windows 端點資產蒐集(WMI / Win32)、監測、指令、升級、軟體派送;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,ADR 0004)。Agent 以 HTTPS 回報、WebSocket 接收指令(不用 gRPC)。基本階段完成(2026-10-07 測試區:Agent 經 :9443 回報、GigaItApp 電腦清單可見)。第二階段 PLATFORM-PLAN(2026-10-13 定案,P1–P8):監控服務(Agent + Watchdog,SYSTEM、裝置憑證)與使用者端程式(rustit-desktop,登入者身分)分開;本機加密持久化與離線紀錄;軟體庫 NAS RustIT\\software 由後端唯讀提供。P2(本機加密暫存、離線補傳與 offline_period)、P4(指令通道:inventory.collect、agent.restart、message.show、agent.diagnose、logs.collect 日誌上傳、agent.log_level;GigaItApp 指令畫面與指令紀錄)2026-10-15 測試區 VM 驗證完成。P3(資料呈現:管理 API 清單分頁與篩選〔含依軟體名稱,ita.device_software〕、事件、下載資產 JSON、停用 / 退役、合併疑似同一台〔endpoint.command.admin〕;GigaItApp 電腦詳情 7 個 Tab)2026-10-16 上測試區,2026-10-19 VM 合併驗證通過。E6 資料範圍(管理 API 依 Token cos 只看所屬公司的電腦,全部公司角色另設;電腦所屬公司依憑證 FQDN / 回報網域判定或 IT 指定)2026-10-16 上測試區、2026-10-19 驗證通過,GigaItApp 公司欄待做。P5 監測(P5-MONITOR-DESIGN.md):P5-1 健康摘要、資產前後比對產生軟硬體變更事件、固定規則告警(ita.device_health / device_alert,migration 0006)2026-10-19 上測試區;P5-2 Watchdog(GigaNexusWatchdog 服務、本機具名管道、互相看守、監控 MSI 含兩個服務)2026-10-19 測試區 VM 驗收通過;P5-3 GigaItApp 監測畫面(健康、告警 Tab)2026-10-20 上測試區。Cargo workspace:collector、agent(Windows 服務 GigaNexusAgent + 監控 MSI;測試區 VM 0.6.0)、watchdog(0.1.0)、common(Agent / Watchdog 共用:設定、連線、服務控制、具名管道)、demo(Tauri,P8 改名 desktop);native(egui)已移除。",
+      "summary": "Windows 端點資產蒐集(WMI / Win32)、監測、指令、升級、軟體派送;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,ADR 0004)。Agent 以 HTTPS 回報、WebSocket 接收指令(不用 gRPC)。基本階段完成(2026-10-07 測試區:Agent 經 :9443 回報、GigaItApp 電腦清單可見)。第二階段 PLATFORM-PLAN(2026-10-13 定案,P1–P8):監控服務(Agent + Watchdog,SYSTEM、裝置憑證)與使用者端程式(rustit-desktop,登入者身分)分開;本機加密持久化與離線紀錄;軟體庫 NAS RustIT\\software 由後端唯讀提供。P2(本機加密暫存、離線補傳與 offline_period)、P4(指令通道:inventory.collect、agent.restart、message.show、agent.diagnose、logs.collect 日誌上傳、agent.log_level;GigaItApp 指令畫面與指令紀錄)2026-10-15 測試區 VM 驗證完成。P3(資料呈現:管理 API 清單分頁與篩選〔含依軟體名稱,ita.device_software〕、事件、下載資產 JSON、停用 / 退役、合併疑似同一台〔endpoint.command.admin〕;GigaItApp 電腦詳情 7 個 Tab)2026-10-16 上測試區,2026-10-19 VM 合併驗證通過。E6 資料範圍(管理 API 依 Token cos 只看所屬公司的電腦,全部公司角色另設;電腦所屬公司依憑證 FQDN / 回報網域判定或 IT 指定)2026-10-16 上測試區、2026-10-19 驗證通過,GigaItApp 公司欄待做。P5 監測(P5-MONITOR-DESIGN.md):P5-1 健康摘要、資產前後比對產生軟硬體變更事件、固定規則告警(ita.device_health / device_alert,migration 0006)2026-10-19 上測試區;P5-2 Watchdog(GigaNexusWatchdog 服務、本機具名管道、互相看守、監控 MSI 含兩個服務)2026-10-19 測試區 VM 驗收通過;P5-3 GigaItApp 監測畫面(健康、告警 Tab)2026-10-20 上測試區。P6 升級(P6-UPGRADE-DESIGN.md)2026-10-21 測試區完成:版本登錄與發佈環(pilot / it / all,migration 0007)、Watchdog 升級 Agent、Agent 替換 Watchdog、驗證 SHA-256 / Authenticode / 簽章者並自動還原、agent.upgrade 指令、GigaItApp「Agent 版本」頁;主機 2 Windows GitLab Runner 建置未簽章 exe + 人工簽章 + 上架(RUNBOOK.md),Agent 0.8.2 / Watchdog 0.3.2 已發佈。Cargo workspace:collector、agent(Windows 服務 GigaNexusAgent + 監控 MSI;測試區 0.8.2)、watchdog(0.3.2)、common(Agent / Watchdog 共用:設定、連線、服務控制、具名管道)、demo(Tauri,P8 改名 desktop);native(egui)已移除。",
       "tech": ["Rust", "Tauri", "Node.js"],
       "endpoints": ["Agent → :9443 mTLS(HTTPS 回報 + WebSocket 指令)"],
       "docs": ["RustIt/README.md", "RustIt/AGENT.md", "RustIt/docs/PROJECT-MAP.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/docs/HANDOFF.md", "RustIt/docs/PRD.md", "RustIt/docs/INTEGRATION-PLAN.md"]
@@ -148,9 +148,9 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。測試區 2026-10-07 起運作(主機 2 容器 endpoint-server,CI develop 部署)。已完成:/sync 補傳與離線紀錄(P2)、指令派發(P4:ita.command / command_batch、WebSocket command / command_update、basic 指令 API、指令附檔 ita.command_file + Docker volume ita_command_files 保存 14 天)、資料呈現(P3:ita.device_software、清單篩選、事件、合併)、資料範圍依公司(E6:ita.device.company,範圍外 404,PUT /devices/{id}/company)、監測(P5-1:ita.device_health、ita.device_alert,健康摘要、資產變更事件、告警 /alerts、健康走勢;P5-2:POST /agent/v1/watchdog/report、agent_tampered)。規劃(PLATFORM-PLAN):版本與發佈環(P6)、軟體目錄與套件下載(P7,NAS 唯讀掛載);螢幕串流屬路線圖。",
+      "summary": "接收 Agent 資產回報與心跳、派發指令、螢幕串流:endpoint-api(51240)、endpoint-agent(51241,HTTPS / WebSocket)。實作於 RustIt/ItAgentBack(Node.js + Fastify,取代原規劃的 Rust Axum,ADR 0004);儲存為 SQL Server giganexus_It_Agent(永久)、MongoDB(快照歷史)、Redis(在線狀態)。測試區 2026-10-07 起運作(主機 2 容器 endpoint-server,CI develop 部署)。已完成:/sync 補傳與離線紀錄(P2)、指令派發(P4:ita.command / command_batch、WebSocket command / command_update、basic 指令 API、指令附檔 ita.command_file + Docker volume ita_command_files 保存 14 天)、資料呈現(P3:ita.device_software、清單篩選、事件、合併)、資料範圍依公司(E6:ita.device.company,範圍外 404,PUT /devices/{id}/company)、監測(P5-1:ita.device_health、ita.device_alert,健康摘要、資產變更事件、告警 /alerts、健康走勢;P5-2:POST /agent/v1/watchdog/report、agent_tampered)、升級(P6:migration 0007 ita.agent_release / release_ring / device_upgrade、ita.device.ring,版本登錄 / 發佈環 / 所屬環 API、report 回應 target、GET /agent/v1/releases/{component}/{version}/{file} 只給被指派的版本、agent.upgrade、告警 upgrade_failed / version_mismatch;版本檔目錄測試區暫用主機 2 /srv/giganexus/ita-releases)。規劃(PLATFORM-PLAN):軟體目錄與套件下載(P7,NAS 唯讀掛載,版本檔目錄一起改 NAS);螢幕串流屬路線圖。",
       "tech": ["Node.js", "Fastify", "WebSocket", "MongoDB", "Redis"],
-      "endpoints": [":51240 REST(/api/endpoint/* 經 BFF:電腦、指令、日誌下載)", ":51241 HTTPS / WebSocket(經 :9443;含指令附檔上傳)", "/ws/endpoint/*(Nginx auth_request 後直連)"],
+      "endpoints": [":51240 REST(/api/endpoint/* 經 BFF:電腦、指令、日誌下載)", ":51241 HTTPS / WebSocket(經 :9443;含指令附檔上傳、Watchdog 上報、升級檔下載)", "/ws/endpoint/*(Nginx auth_request 後直連)"],
       "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/ItAgentBack/docs/DB_SCHEMA.md", "RustIt/docs/decisions/0004-node-endpoint-server.md"]
     },
     {
@@ -162,10 +162,10 @@
       "status": "active",
       "repo": "RustIt",
       "detail": null,
-      "summary": "端點電腦上的 Windows 服務 GigaNexusWatchdog(rustit-watchdog 0.1.0,RustIt crates/watchdog,P5-2):每 30 秒以 SCM 與本機具名管道 \\\\.\\pipe\\giganexus-agent-v1 看守 Agent(當掉 / 卡住重啟、被手動停止或改啟動類型時恢復、程式不見或被換),事件先寫本機 state\\watchdog.db,自己經 :9443 以 POST /agent/v1/watchdog/report 上報;Agent 也看守 Watchdog。與 Agent 同一個監控 MSI。P5-2 2026-10-19 測試區 VM 驗收通過;Agent / 使用者端程式升級與還原(發佈環)在 P6。",
+      "summary": "端點電腦上的 Windows 服務 GigaNexusWatchdog(rustit-watchdog,RustIt crates/watchdog;0.1.0 P5-2,測試區已發佈 0.3.2):每 30 秒以 SCM 與本機具名管道 \\\\.\\pipe\\giganexus-agent-v1 看守 Agent(當掉 / 卡住重啟、被手動停止或改啟動類型時恢復、程式不見或被換),事件先寫本機 state\\watchdog.db,自己經 :9443 以 POST /agent/v1/watchdog/report 上報;Agent 也看守 Watchdog。與 Agent 同一個監控 MSI。P5-2 2026-10-19 測試區 VM 驗收通過。P6(2026-10-21 測試區完成):依 report 回應的發佈環目標升級 Agent(Range 續傳下載、SHA-256 / Authenticode / 簽章者〔主機清單 ∩ 本機清單〕/ 版本驗證、prepare_shutdown、替換、2 分鐘健康檢查、失敗自動還原與 30 分鐘冷卻),自己的新版經管道 replace_watchdog 交給 Agent 替換;使用者端程式升級在 P8。",
       "tech": ["Rust"],
       "endpoints": ["→ :9443"],
-      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/PLATFORM-PLAN.md"]
+      "docs": ["giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md", "RustIt/docs/PLATFORM-PLAN.md", "RustIt/docs/P6-UPGRADE-DESIGN.md", "RustIt/docs/RUNBOOK.md"]
     },
     {
       "id": "rustit-desktop",
@@ -330,7 +330,7 @@
       "status": "active",
       "repo": null,
       "detail": null,
-      "summary": "公司 GitLab(10.10.130.123)與 Container Registry(:5050);Runner 建置映像並部署測試區 / 正式區。",
+      "summary": "公司 GitLab(10.10.130.123)與 Container Registry(:5050);Runner 建置映像並部署測試區 / 正式區。主機 2 另有 Windows 本機 Runner host2-windows(tag windows、shell pwsh,只綁 RustIt,2026-10-21):建置未簽章的 Agent / Watchdog exe 與 cargo audit,簽章由簽章人員在自己的電腦做(RustIt/docs/WINDOWS-RUNNER-SETUP.md)。",
       "tech": ["GitLab CI", "Docker"],
       "endpoints": [],
       "docs": ["giga-api-gateway-bff/docs/GITLAB-SETUP.md", "giga-api-gateway-bff/docs/DEPLOYMENT.md"]
@@ -395,7 +395,7 @@
     { "from": "giga-api-gateway-bff", "to": "endpoint-server", "type": "proxy", "label": "/api/endpoint/*、:9443 proxy_pass(/ws/endpoint/* 規劃)", "status": "active" },
     { "from": "RustIt", "to": "giga-api-gateway-bff", "type": "mtls", "label": "Agent :9443 mTLS HTTPS / WebSocket(心跳 / 資產上報 / 離線補傳;指令與日誌附檔上傳)", "status": "active" },
     { "from": "agent-watchdog", "to": "giga-api-gateway-bff", "type": "mtls", "label": ":9443 Watchdog 上報(POST /agent/v1/watchdog/report)", "status": "active" },
-    { "from": "agent-watchdog", "to": "RustIt", "type": "api", "label": "本機具名管道 get_status 看守 Agent(互相看守)", "status": "active" },
+    { "from": "agent-watchdog", "to": "RustIt", "type": "api", "label": "本機具名管道 get_status 看守 Agent(互相看守);升級時 prepare_shutdown / replace_watchdog", "status": "active" },
     { "from": "rustit-desktop", "to": "giga-Portal", "type": "nav", "label": "嵌入入口網 / 報修 / 公告", "status": "planned" },
     { "from": "rustit-desktop", "to": "giga-api-gateway-bff", "type": "api", "label": ":443 使用者登入、/ws/notify 公告通知", "status": "planned" },
     { "from": "rustit-desktop", "to": "RustIt", "type": "api", "label": "唯讀管道讀 Agent 狀態、接收提示", "status": "planned" },
@@ -411,6 +411,7 @@
     { "from": "bpm", "to": "giga-api-gateway-bff", "type": "api", "label": "/webhook/bpm(HMAC)", "status": "planned" },
     { "from": "adaptors", "to": "bpm", "type": "data", "label": "BPM 簽核", "status": "planned" },
     { "from": "gitlab", "to": "giga-api-gateway-bff", "type": "cicd", "label": "建置 nginx / bff 映像、部署", "status": "active" },
-    { "from": "gitlab", "to": "hello-world", "type": "cicd", "label": "CI/CD 驗證", "status": "active" }
+    { "from": "gitlab", "to": "hello-world", "type": "cicd", "label": "CI/CD 驗證", "status": "active" },
+    { "from": "gitlab", "to": "RustIt", "type": "cicd", "label": "ItAgentBack 測試區部署(WSL Runner);Agent / Watchdog 未簽章建置與 cargo audit(Windows Runner host2-windows)", "status": "active" }
   ]
 }
