@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-15",
+  "updated": "2026-10-28",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -133,7 +133,7 @@
       "kind": "repo",
       "status": "active",
       "repo": "RustIt",
-      "detail": null,
+      "detail": "projects/RustIt.json",
       "summary": "Windows 端點資產蒐集(WMI / Win32)、監測、指令、升級、軟體派送;Rust 只做端點(`RustAgent/`),Endpoint Server 為 Node.js(`ItAgentBack/`,ADR 0004)。Agent 以 HTTPS 回報、WebSocket 接收指令(不用 gRPC)。基本階段完成(2026-10-07 測試區:Agent 經 :9443 回報、GigaItApp 電腦清單可見)。第二階段 PLATFORM-PLAN(2026-10-13 定案,P1–P8):監控服務(Agent + Watchdog,SYSTEM、裝置憑證)與使用者端程式(rustit-desktop,登入者身分)分開;本機加密持久化與離線紀錄;軟體庫 NAS RustIT\\{test,prod}\\software 由後端唯讀提供。P2(本機加密暫存、離線補傳與 offline_period)、P4(指令通道:inventory.collect、agent.restart、message.show、agent.diagnose、logs.collect 日誌上傳、agent.log_level;GigaItApp 指令畫面與指令紀錄)2026-10-15 測試區 VM 驗證完成。P3(資料呈現:管理 API 清單分頁與篩選〔含依軟體名稱,ita.device_software〕、事件、下載資產 JSON、停用 / 退役、合併疑似同一台〔endpoint.command.admin〕;GigaItApp 電腦詳情 7 個 Tab)2026-10-16 上測試區,2026-10-19 VM 合併驗證通過。E6 資料範圍(管理 API 依 Token cos 只看所屬公司的電腦,全部公司角色另設;電腦所屬公司依憑證 FQDN / 回報網域判定或 IT 指定)2026-10-16 上測試區、2026-10-19 驗證通過,GigaItApp 公司欄待做。P5 監測(P5-MONITOR-DESIGN.md):P5-1 健康摘要、資產前後比對產生軟硬體變更事件、固定規則告警(ita.device_health / device_alert,migration 0006)2026-10-19 上測試區;P5-2 Watchdog(GigaNexusWatchdog 服務、本機具名管道、互相看守、監控 MSI 含兩個服務)2026-10-19 測試區 VM 驗收通過;P5-3 GigaItApp 監測畫面(健康、告警 Tab)2026-10-20 上測試區。P6 升級(P6-UPGRADE-DESIGN.md)2026-10-21 測試區完成:版本登錄與發佈環(pilot / it / all,migration 0007)、Watchdog 升級 Agent、Agent 替換 Watchdog、驗證 SHA-256 / Authenticode / 簽章者並自動還原、agent.upgrade 指令、GigaItApp「Agent 版本」頁;主機 2 Windows GitLab Runner 建置未簽章 exe + 人工簽章 + 上架(RUNBOOK.md),Agent 0.8.2 / Watchdog 0.3.2 已發佈。P7 軟體派送(P7-SOFTWARE-DESIGN.md)程式全部合併 develop 並上測試區(2026-10-27):P7-1 後端〔軟體目錄、兩人覆核、批次第二人核可、套件下載 API,migration 0008,MR !50〕、P7-2 / P7-3 Agent 0.9.0〔software.install / uninstall、A6 電池 / 計量網路延後、system.reboot / reboot.cancel、本機重開機上限、agent.toml [software] 信任清單,MR !51〕、P7-4 NAS 軟體庫與版本檔目錄測試 / 正式分開〔RustIT\\test、RustIT\\prod,測試區已切換〕、P7-5 / P7-6 GigaItApp 軟體派送畫面與 VM 驗收、收尾〔!56、!57〕、Agent 0.9.2〔版本比對、套件 timeout_sec,migration 0009〕、Agent 0.9.3〔Windows Installer 忙碌判斷、延後中顯示,migration 0010〕;Gateway OpenAPI v56 起,ENDPOINT-AGENT-GUIDE v0.13。Agent 0.9.3 已上 pilot 環,VM 重驗進行中,通過後才算 P7 收尾;正式區需先套 migration、掛載 NAS prod、換正式簽章憑證;失敗處理與廠商簽章者換新見 RUNBOOK §3、§4。Cargo workspace:collector、agent(Windows 服務 GigaNexusAgent + 監控 MSI;測試區 pilot 0.9.3)、watchdog(0.3.2)、common(Agent / Watchdog 共用:設定、連線、服務控制、具名管道)、demo(Tauri,P8 改名 desktop);native(egui)已移除。",
       "tech": ["Rust", "Tauri", "Node.js"],
       "endpoints": ["Agent → :9443 mTLS(HTTPS 回報 + WebSocket 指令)"],
