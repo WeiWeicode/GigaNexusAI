@@ -118,7 +118,7 @@
         "layer": "a-build",
         "type": "module",
         "status": "active",
-        "description": "-Environment test|prod:先 ssh 唯讀查目標區 ita.agent_release,同元件同版本號(含已撤回)登錄過就停止;以 SMB 寫入 NAS 版本檔目錄、重算 SHA-256;不覆蓋既有版本檔;放好後經主機唯讀掛載再算一次雜湊",
+        "description": "-Environment test|prod:先查目標區版本表,同元件同版本號(含已撤回)登錄過就停止(S1-1 起建議 -GatewayUrl + -ApiKeyFile 以 API Key 呼叫 GET /api/endpoint/releases/registry,不需主機帳號;未給時沿用 ssh 唯讀查 ita.agent_release);簽章工作站 signing-workstation.ps1 release 模式可一次串接簽章與上架;以 SMB 寫入 NAS 版本檔目錄、重算 SHA-256;不覆蓋既有版本檔;放好後經主機唯讀掛載再算一次雜湊",
         "path": "RustIt/RustAgent/installer/publish-release.ps1"
       },
       {
