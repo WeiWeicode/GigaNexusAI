@@ -1,0 +1,451 @@
+{
+  "version": 1,
+  "id": "RustIt",
+  "name": "RustIt 端點管理",
+  "updated": "2026-10-28",
+  "summary": "端點管理的兩條上架流程:(A)Agent / Watchdog 發版上架(CI 建置 → 簽章人員簽章 → 上架 NAS 版本檔 → GigaItApp 登錄與發佈環 → Watchdog 下載驗證升級);(S)軟體上架與派送(安裝檔放 NAS 軟體庫 → GigaItApp 登錄套件 draft → tested → 第二人 published → 派送 / 批次 → Agent 下載、驗證、靜默安裝並回報)。圖分兩組(分層標籤「Agent 上架」「軟體上架」可個別開關):連線標籤 A1~A11 為 Agent 上架步驟、S1~S11 為軟體上架步驟;只畫流程,不重複端點平台的 WebSocket 指令與資產回報。",
+  "sources": [
+    "RustIt/docs/RUNBOOK.md §1(發版:建置 → 簽章 → 上架 → 登錄 → 逐環推進)、§1.1(NAS test / prod 分開)",
+    "RustIt/docs/P6-UPGRADE-DESIGN.md(Watchdog 升級 Agent、Agent 升級 Watchdog、發佈環、自動還原)",
+    "RustIt/docs/P7-SOFTWARE-DESIGN.md §3.2(軟體目錄狀態機與兩人覆核)、§3.3(下載 API)、§5.2(software.install 流程)、§6(第二人核可)",
+    "giga-api-gateway-bff/docs/ENDPOINT-AGENT-GUIDE.md v0.13"
+  ],
+  "architecture": {
+    "direction": "LR",
+    "layers": [
+      {
+        "id": "a-people",
+        "name": "Agent 上架 · 人員",
+        "description": "開發者、簽章人員、IT 管理員、第二人(覆核 / 核可)"
+      },
+      {
+        "id": "a-build",
+        "name": "Agent 上架 · 建置與上架工具",
+        "description": "GitLab Windows Runner 建置;簽章人員電腦上的簽章與上架腳本(CI 與 Runner 沒有簽章私鑰)"
+      },
+      {
+        "id": "a-nas",
+        "name": "Agent 上架 · NAS 檔案庫",
+        "description": "同一台 NAS 的 RustIT 目錄,test / prod 分開;endpoint-server 只以唯讀掛載讀取"
+      },
+      {
+        "id": "a-platform",
+        "name": "Agent 上架 · Gateway 與 Endpoint Server",
+        "description": ":9443 mTLS 入口與 endpoint-server(版本表、套件目錄、發佈環、指令、批次核可)"
+      },
+      {
+        "id": "a-ui",
+        "name": "Agent 上架 · 管理畫面",
+        "description": "GigaItApp 端點管理:Agent 版本、發佈環、軟體派送(軟體目錄 / 批次)"
+      },
+      {
+        "id": "a-endpoint",
+        "name": "Agent 上架 · 端點電腦",
+        "description": "Windows 端點上的 Agent 與 Watchdog(SYSTEM 服務,互相守護與升級)"
+      },
+      {
+        "id": "s-people",
+        "name": "軟體上架 · 人員",
+        "description": "開發者、簽章人員、IT 管理員、第二人(覆核 / 核可)"
+      },
+      {
+        "id": "s-nas",
+        "name": "軟體上架 · NAS 檔案庫",
+        "description": "同一台 NAS 的 RustIT 目錄,test / prod 分開;endpoint-server 只以唯讀掛載讀取"
+      },
+      {
+        "id": "s-platform",
+        "name": "軟體上架 · Gateway 與 Endpoint Server",
+        "description": ":9443 mTLS 入口與 endpoint-server(版本表、套件目錄、發佈環、指令、批次核可)"
+      },
+      {
+        "id": "s-ui",
+        "name": "軟體上架 · 管理畫面",
+        "description": "GigaItApp 端點管理:Agent 版本、發佈環、軟體派送(軟體目錄 / 批次)"
+      },
+      {
+        "id": "s-endpoint",
+        "name": "軟體上架 · 端點電腦",
+        "description": "Windows 端點上的 Agent 與 Watchdog(SYSTEM 服務,互相守護與升級)"
+      }
+    ],
+    "components": [
+      {
+        "id": "a-developer",
+        "name": "開發者 / Maintainer",
+        "layer": "a-people",
+        "type": "client",
+        "status": "active",
+        "description": "改 Cargo.toml 版本號、合併 develop;Maintainer 在 main 建 tag rustit-v<Agent 版本>"
+      },
+      {
+        "id": "a-signer",
+        "name": "簽章人員",
+        "layer": "a-people",
+        "type": "client",
+        "status": "active",
+        "description": "持正式程式碼簽章憑證;在自己的電腦執行 sign-release.ps1 與 publish-release.ps1(CI 與 Runner 沒有私鑰)"
+      },
+      {
+        "id": "a-it-admin",
+        "name": "IT 管理員",
+        "layer": "a-people",
+        "type": "client",
+        "status": "active",
+        "description": "GigaItApp 登錄版本(填預期簽章者指紋)、設 pilot 目標並觀察至少 24 小時、發佈後依序推進 it / all、看環進度與 upgrade_failed 告警並重試;需 endpoint.software.manage,改發佈環另需全部公司角色(ENDPOINT_SCOPE_ALL_ROLES)"
+      },
+      {
+        "id": "a-ci-runner",
+        "name": "GitLab Runner(host2-windows)",
+        "layer": "a-build",
+        "type": "worker",
+        "status": "active",
+        "description": "tag 觸發 build:release,產出未簽章 release-out:agent / watchdog exe、SHA256SUMS.txt、RELEASE-INFO.txt(Runner 無私鑰)",
+        "path": "RustIt/.gitlab-ci.yml"
+      },
+      {
+        "id": "a-sign-script",
+        "name": "sign-release.ps1",
+        "layer": "a-build",
+        "type": "module",
+        "status": "active",
+        "description": "先核對每個檔案雜湊與 SHA256SUMS.txt(不符整批中止),再 signtool 簽章與驗證;輸出 SHA256SUMS.signed.txt、SIGNED-INFO.txt(含 signer_thumbprint)。prod 拒絕測試憑證、要求時間戳記",
+        "path": "RustIt/RustAgent/installer/sign-release.ps1"
+      },
+      {
+        "id": "a-publish-script",
+        "name": "publish-release.ps1",
+        "layer": "a-build",
+        "type": "module",
+        "status": "active",
+        "description": "-Environment test|prod:先 ssh 唯讀查目標區 ita.agent_release,同元件同版本號(含已撤回)登錄過就停止;以 SMB 寫入 NAS 版本檔目錄、重算 SHA-256;不覆蓋既有版本檔;放好後經主機唯讀掛載再算一次雜湊",
+        "path": "RustIt/RustAgent/installer/publish-release.ps1"
+      },
+      {
+        "id": "a-nas-releases",
+        "name": "NAS 版本檔 releases",
+        "layer": "a-nas",
+        "type": "datastore",
+        "status": "active",
+        "description": "RustIT\\{test|prod}\\releases\\{元件}\\{版本}\\{檔名}(agent / watchdog 已簽章 exe 與簽章雜湊檔);endpoint-server 唯讀掛載(測試區 /srv/releases)"
+      },
+      {
+        "id": "a-gateway-9443",
+        "name": "Gateway :9443(mTLS)",
+        "layer": "a-platform",
+        "type": "gateway",
+        "status": "active",
+        "description": "端點 Agent / Watchdog 以裝置憑證連入,proxy_pass 到 endpoint-agent(:51241);/api/endpoint/* 管理 API 經 BFF 轉 endpoint-api(:51240)"
+      },
+      {
+        "id": "a-endpoint-api",
+        "name": "endpoint-api(:51240)",
+        "layer": "a-platform",
+        "type": "api",
+        "status": "active",
+        "description": "管理 API:登錄版本(讀 NAS 檔算 SHA-256 與大小)、發佈 / 撤回、發佈環目標(pilot 滿 24 小時才可推進 it / all,否則需 force 並寫稽核)、軟體目錄與 draft → tested → published → revoked 狀態機、批次與第二人核可、全域並行上限",
+        "path": "RustIt/ItAgentBack"
+      },
+      {
+        "id": "a-endpoint-agent-api",
+        "name": "endpoint-agent(:51241)",
+        "layer": "a-platform",
+        "type": "api",
+        "status": "active",
+        "description": "Agent 端 API:watchdog/report 回應帶升級 target;GET /agent/v1/releases/{component}/{version}/{file} 下載版本檔;GET /agent/v1/packages/{id} 下載安裝檔(下發前再比對 SHA-256,檔案被換掉就拒絕並開 software_file_tampered 告警);指令 WebSocket 下發 software.install / uninstall"
+      },
+      {
+        "id": "a-ita-db",
+        "name": "giganexus_It_Agent(SQL Server)",
+        "layer": "a-platform",
+        "type": "datastore",
+        "status": "active",
+        "description": "ita.agent_release、release_ring、device_upgrade、device.ring(P6);ita.software_package、command_batch、command(P7)。資料表細節見 endpoint-server 與 RustIt/ItAgentBack/docs/DB_SCHEMA.md"
+      },
+      {
+        "id": "a-giga-it-app",
+        "name": "GigaItApp 端點管理",
+        "layer": "a-ui",
+        "type": "client",
+        "status": "active",
+        "description": "電腦清單 › Agent 版本(登錄版本、發佈、撤回、發佈環表、環進度);軟體派送 › 軟體目錄(登錄套件、標記 tested、發佈、撤回)與批次(核可 / 駁回)",
+        "path": "GigaItApp"
+      },
+      {
+        "id": "a-watchdog",
+        "name": "Watchdog(GigaNexusWatchdog)",
+        "layer": "a-endpoint",
+        "type": "client",
+        "status": "active",
+        "description": "定期上報取得升級 target;下載(續傳)並驗 SHA-256 / Authenticode / 簽章者(須同時在主機清單與本機 [upgrade] trusted_signers);經管道 prepare_shutdown 後替換 Agent,舊版放 previous\\,2 分鐘內 get_status 不正常就自動還原並回報 rolled_back",
+        "path": "RustIt/RustAgent/crates/watchdog"
+      },
+      {
+        "id": "a-agent",
+        "name": "Agent(GigaNexusAgent)",
+        "layer": "a-endpoint",
+        "type": "client",
+        "status": "active",
+        "description": "收到 software.install:驗磁碟、下載、驗 SHA-256 與 Authenticode 簽章者(須同時在主機快照與本機 [software] trusted_signers)、靜默安裝(命令列由 Agent 端寫死)、偵測規則確認,回報 succeeded / failed;另以管道 replace_watchdog 替換 Watchdog(升級 Watchdog,自行再驗一次)",
+        "path": "RustIt/RustAgent/crates/agent"
+      },
+      {
+        "id": "s-it-admin",
+        "name": "IT 管理員",
+        "layer": "s-people",
+        "type": "client",
+        "status": "active",
+        "description": "endpoint.software.manage;把安裝檔放進 NAS 軟體庫、登錄套件(draft)、派 draft 到 pilot 測試機、安裝成功後標記 tested(簽章者指紋須等於測試機回報的 observed_signers 之一)、派送"
+      },
+      {
+        "id": "s-approver",
+        "name": "第二人(覆核 / 核可)",
+        "layer": "s-people",
+        "type": "client",
+        "status": "active",
+        "description": "published_by 必須不同於 created_by(P7-SOFTWARE-DESIGN §3.2 兩人覆核);批次超過核可門檻(同一人 24 小時內累計超過 20 台)也由第二人核可"
+      },
+      {
+        "id": "s-nas-software",
+        "name": "NAS 軟體庫 software",
+        "layer": "s-nas",
+        "type": "datastore",
+        "status": "active",
+        "description": "RustIT\\{test|prod}\\software\\{軟體}\\{版本}\\{檔名}(廠商安裝檔,MSI / EXE);endpoint-server 唯讀掛載(測試區 /srv/software);測試區已切換、正式區從空目錄開始"
+      },
+      {
+        "id": "s-gateway-9443",
+        "name": "Gateway :9443(mTLS)",
+        "layer": "s-platform",
+        "type": "gateway",
+        "status": "active",
+        "description": "端點 Agent / Watchdog 以裝置憑證連入,proxy_pass 到 endpoint-agent(:51241);/api/endpoint/* 管理 API 經 BFF 轉 endpoint-api(:51240)"
+      },
+      {
+        "id": "s-endpoint-api",
+        "name": "endpoint-api(:51240)",
+        "layer": "s-platform",
+        "type": "api",
+        "status": "active",
+        "description": "軟體目錄與狀態機 draft → tested → published → revoked(只有 draft 可改參數;draft / tested 只能派 pilot 測試機)、批次與第二人核可、全域並行上限、授權數檢查",
+        "path": "RustIt/ItAgentBack"
+      },
+      {
+        "id": "s-endpoint-agent-api",
+        "name": "endpoint-agent(:51241)",
+        "layer": "s-platform",
+        "type": "api",
+        "status": "active",
+        "description": "GET /agent/v1/packages/{id} 下載安裝檔(套件須 published,或 draft / tested 且裝置在 pilot 環;下發前再比對 SHA-256,檔案被換掉回 503 ITA_PACKAGE_CHANGED 並開 software_file_tampered 告警);指令經 WebSocket 下發 software.install / uninstall"
+      },
+      {
+        "id": "s-ita-db",
+        "name": "giganexus_It_Agent(SQL Server)",
+        "layer": "s-platform",
+        "type": "datastore",
+        "status": "active",
+        "description": "ita.software_package(migration 0008~0010)、ita.command_batch、ita.command;欄位見 RustIt/ItAgentBack/docs/DB_SCHEMA.md"
+      },
+      {
+        "id": "s-giga-it-app",
+        "name": "GigaItApp 端點管理",
+        "layer": "s-ui",
+        "type": "client",
+        "status": "active",
+        "description": "軟體派送 › 軟體目錄(登錄套件、標記 tested、發佈、撤回)與批次(核可 / 駁回)",
+        "path": "GigaItApp"
+      },
+      {
+        "id": "s-agent",
+        "name": "Agent(GigaNexusAgent)",
+        "layer": "s-endpoint",
+        "type": "client",
+        "status": "active",
+        "description": "收到 software.install:驗磁碟、下載、驗 SHA-256 與 Authenticode 簽章者(須同時在主機快照與本機 [software] trusted_signers)、靜默安裝(命令列由 Agent 端寫死)、偵測規則確認,回報 succeeded / failed",
+        "path": "RustIt/RustAgent/crates/agent"
+      }
+    ],
+    "flows": [
+      {
+        "from": "a-developer",
+        "to": "a-ci-runner",
+        "label": "A1 推 tag 觸發 build:release",
+        "status": "active"
+      },
+      {
+        "from": "a-ci-runner",
+        "to": "a-signer",
+        "label": "A2 未簽章 artifact + 雜湊",
+        "status": "active"
+      },
+      {
+        "from": "a-signer",
+        "to": "a-sign-script",
+        "label": "A3 核對雜湊、正式憑證簽章",
+        "status": "active"
+      },
+      {
+        "from": "a-sign-script",
+        "to": "a-publish-script",
+        "label": "A4 已簽章 release-out",
+        "status": "active"
+      },
+      {
+        "from": "a-publish-script",
+        "to": "a-nas-releases",
+        "label": "A5 上架 test 或 prod(不覆蓋)",
+        "status": "active"
+      },
+      {
+        "from": "a-endpoint-api",
+        "to": "a-nas-releases",
+        "label": "A6 唯讀掛載、登錄時算雜湊",
+        "status": "active"
+      },
+      {
+        "from": "a-it-admin",
+        "to": "a-giga-it-app",
+        "label": "A7 登錄版本(草稿)+ 簽章者指紋",
+        "status": "active"
+      },
+      {
+        "from": "a-giga-it-app",
+        "to": "a-endpoint-api",
+        "label": "A8 設 pilot 目標(草稿可)、觀察 ≥24h",
+        "status": "active"
+      },
+      {
+        "from": "a-giga-it-app",
+        "to": "a-endpoint-api",
+        "label": "A8b 發佈、設 it→all(未滿24h需force)",
+        "status": "active"
+      },
+      {
+        "from": "a-endpoint-api",
+        "to": "a-ita-db",
+        "label": "寫 agent_release / release_ring",
+        "status": "active"
+      },
+      {
+        "from": "a-watchdog",
+        "to": "a-gateway-9443",
+        "label": "A9 上報取 target、下載版本檔",
+        "status": "active"
+      },
+      {
+        "from": "a-gateway-9443",
+        "to": "a-endpoint-agent-api",
+        "label": "proxy_pass",
+        "status": "active"
+      },
+      {
+        "from": "a-endpoint-agent-api",
+        "to": "a-nas-releases",
+        "label": "A10 讀版本檔回傳",
+        "status": "active"
+      },
+      {
+        "from": "a-watchdog",
+        "to": "a-agent",
+        "label": "A11 驗證後替換 Agent、失敗還原",
+        "status": "active"
+      },
+      {
+        "from": "a-agent",
+        "to": "a-watchdog",
+        "label": "A11 replace_watchdog 替換 Watchdog",
+        "status": "active"
+      },
+      {
+        "from": "s-it-admin",
+        "to": "s-nas-software",
+        "label": "S1 放安裝檔(NAS 寫入帳號)",
+        "status": "active"
+      },
+      {
+        "from": "s-endpoint-api",
+        "to": "s-nas-software",
+        "label": "S2 唯讀掛載、登錄時算雜湊",
+        "status": "active"
+      },
+      {
+        "from": "s-it-admin",
+        "to": "s-giga-it-app",
+        "label": "S3 登錄套件 → draft",
+        "status": "active"
+      },
+      {
+        "from": "s-endpoint-api",
+        "to": "s-agent",
+        "label": "S4 派 draft 到 pilot 測試機安裝",
+        "status": "active"
+      },
+      {
+        "from": "s-giga-it-app",
+        "to": "s-endpoint-api",
+        "label": "S5 測試成功後 mark-tested(填簽章者)",
+        "status": "active"
+      },
+      {
+        "from": "s-endpoint-api",
+        "to": "s-ita-db",
+        "label": "寫 software_package / command_batch",
+        "status": "active"
+      },
+      {
+        "from": "s-approver",
+        "to": "s-giga-it-app",
+        "label": "S6 第二人檢視參數、簽章者、雜湊並發佈",
+        "status": "active"
+      },
+      {
+        "from": "s-it-admin",
+        "to": "s-giga-it-app",
+        "label": "S7 派送單台 / 批次",
+        "status": "active"
+      },
+      {
+        "from": "s-approver",
+        "to": "s-giga-it-app",
+        "label": "S8 超過門檻:第二人核可批次",
+        "status": "active"
+      },
+      {
+        "from": "s-endpoint-api",
+        "to": "s-agent",
+        "label": "S9 software.install(WebSocket)",
+        "status": "active"
+      },
+      {
+        "from": "s-agent",
+        "to": "s-gateway-9443",
+        "label": "S10 下載 /agent/v1/packages/{id}",
+        "status": "active"
+      },
+      {
+        "from": "s-gateway-9443",
+        "to": "s-endpoint-agent-api",
+        "label": "proxy_pass",
+        "status": "active"
+      },
+      {
+        "from": "s-endpoint-agent-api",
+        "to": "s-nas-software",
+        "label": "S11 比對雜湊後讀檔回傳",
+        "status": "active"
+      }
+    ]
+  },
+  "database": {
+    "notes": [
+      "RustIt 本身沒有資料庫;端點資料存在 endpoint-server 的 SQL Server giganexus_It_Agent(workspace.json 的 sql-ita 節點)。",
+      "上架流程用到的表:ita.agent_release、ita.release_ring、ita.device_upgrade、ita.device.ring(P6,migration 0007);ita.software_package(P7,0008~0010)、ita.command_batch、ita.command。欄位以 RustIt/ItAgentBack/docs/DB_SCHEMA.md 為準。"
+    ],
+    "commonColumns": [],
+    "stores": [],
+    "groups": [],
+    "tables": [],
+    "relations": [],
+    "redisKeys": []
+  }
+}
