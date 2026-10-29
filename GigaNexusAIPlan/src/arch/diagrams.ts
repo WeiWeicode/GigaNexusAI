@@ -1,6 +1,6 @@
 // 由 architecture/*.json 產生 Mermaid 語法(純函式,不碰 DOM)
 // 每個產生器回傳 code 與 ids(Mermaid 節點 ID → 原始 ID),供點擊節點時反查
-import type { Component, ProjectDetail, Table, Workspace, WsNode } from './types'
+import type { Component, Deployment, DeployEdge, DeployEnv, ProjectDetail, Table, Workspace, WsNode } from './types'
 
 export interface Diagram {
   code: string
@@ -211,4 +211,77 @@ function columnsFor(t: Table, mode: ColumnMode) {
   if (mode === 'none') return []
   if (mode === 'keys') return t.columns.filter((c) => c.key)
   return t.columns
+}
+
+// ---------------- 5-4 部署流程(CI/CD) ----------------
+
+export interface DeployOpts {
+  /** 只強調某一區的步驟節點(其餘照畫) */
+  env: DeployEnv | 'all'
+  steps: Deployment['steps']
+  textColor: string
+}
+
+function deployShape(kind: Deployment['nodes'][number]['kind'], label: string) {
+  const l = `"${label}"`
+  switch (kind) {
+    case 'actor':
+      return `([${l}])`
+    case 'branch':
+      return `(${l})`
+    case 'mr':
+      return `{{${l}}}`
+    case 'store':
+      return `[(${l})]`
+    case 'runner':
+      return `[[${l}]]`
+    case 'env':
+      return `[/${l}/]`
+    default:
+      return `[${l}]`
+  }
+}
+
+export function deployDiagram(d: Deployment, o: DeployOpts): Diagram {
+  const ids = new Map<string, string>()
+  const laneOf = new Map(d.nodes.map((n) => [n.id, n.lane]))
+  // 各階段由上而下排列、階段內由左而右;跨階段的線畫在群組之間
+  // (Mermaid 的子圖只要有節點連到外部,就會忽略子圖自己的 direction)
+  const inner = d.edges.filter((e) => laneOf.get(e.from) === laneOf.get(e.to))
+  const cross = d.edges.filter((e) => laneOf.get(e.from) !== laneOf.get(e.to))
+  const lines = ['flowchart TB']
+  for (const lane of d.lanes) {
+    const inLane = d.nodes.filter((n) => n.lane === lane.id)
+    if (!inLane.length) continue
+    lines.push(`  subgraph ${mid('ln', lane.id)}["${esc(lane.name)}"]`, '    direction LR')
+    for (const n of inLane) {
+      const id = mid('d', n.id)
+      ids.set(id, n.id)
+      const sub = n.sub ? `<br/><small>${esc(n.sub)}</small>` : ''
+      lines.push(`    ${id}${deployShape(n.kind, `<b>${esc(n.name)}</b>${sub}`)}`)
+    }
+    lines.push('  end')
+  }
+  const manual: number[] = []
+  const styleOf = (m: DeployEdge['mode']) => (m === 'manual' ? 'thick' : m === 'sync' ? 'dotted' : 'solid')
+  ;[...inner, ...cross].forEach((e, i) => {
+    const isCross = laneOf.get(e.from) !== laneOf.get(e.to)
+    const from = isCross ? mid('ln', laneOf.get(e.from)!) : mid('d', e.from)
+    const to = isCross ? mid('ln', laneOf.get(e.to)!) : mid('d', e.to)
+    lines.push(`  ${from} ${edge(styleOf(e.mode), e.label)} ${to}`)
+    if (e.mode === 'manual') manual.push(i)
+  })
+  for (const lane of d.lanes) {
+    lines.push(classDef(mid('l', lane.id), lane.color, o.textColor))
+    lines.push(`  style ${mid('ln', lane.id)} fill:${lane.color}0d,stroke:${lane.color},stroke-width:1.5px;`)
+  }
+  lines.push('  classDef dim opacity:0.35;')
+  const lit = new Set(o.env === 'all' ? d.nodes.map((n) => n.id) : o.steps.filter((s) => s.env === o.env).flatMap((s) => s.nodes))
+  for (const n of d.nodes) {
+    lines.push(`  class ${mid('d', n.id)} ${mid('l', n.lane)};`)
+    if (!lit.has(n.id)) lines.push(`  class ${mid('d', n.id)} dim;`)
+  }
+  // 人工操作(審核、按 ▶)的線以橘色粗線標示
+  if (manual.length) lines.push(`  linkStyle ${manual.join(',')} stroke:#ea580c,stroke-width:2.5px;`)
+  return { code: lines.join('\n'), ids }
 }

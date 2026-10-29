@@ -10,6 +10,7 @@ GigaNexus 全專案架構圖的**唯一資料來源**。純 JSON 檔、不進資
 | --- | --- | --- |
 | `workspace.json` | 分類、所有專案 / 系統節點、專案之間的關係 | ① 專案彼此的關係(整體架構、各專案的「專案關係」分頁) |
 | `projects/<專案 id>.json` | 單一專案的分層、元件、流向;資料庫、資料表、關聯、Redis 鍵 | ② 專案裡面的架構(「內部架構」分頁)③ 資料庫的架構(「資料庫」分頁) |
+| `deployment.json` | 程式碼部署流程:階段、節點、連線、規則、逐步說明、各專案 CI/CD 現況、回滾 | ④ 部署流程(左側「部署流程(CI/CD)」,網址 `#/arch/_deploy`) |
 
 目前有詳細檔的專案:`giga-api-gateway-bff`。其他專案只在 `workspace.json` 有節點(`"detail": null`),網站上的內部架構 / 資料庫分頁顯示「尚未建立」。
 
@@ -87,6 +88,28 @@ GigaNexus 全專案架構圖的**唯一資料來源**。純 JSON 檔、不進資
   }
 }
 ```
+
+## 3a. `deployment.json`
+
+```jsonc
+{
+  "updated": "2026-10-29",
+  "lanes": [{ "id": "test", "name": "② 測試區:合併 develop 自動部署", "color": "#2563eb", "description": "…" }],  // 圖上由上而下的階段
+  "nodes": [{ "id": "develop", "lane": "test", "kind": "branch", "name": "develop", "sub": "Protected", "detail": "…" }],
+  //           kind:actor 人 | branch 分支 | mr | job | store Registry | runner | env 部署區
+  "edges": [{ "from": "mr-develop", "to": "develop", "label": "④ Maintainer 審核合併", "mode": "manual" }],
+  //           mode:auto 自動 | manual 人工(橘色粗線)| sync 同步(虛線);跨階段的線畫在階段框之間
+  "rules": [{ "level": "must", "title": "…", "body": "…" }],          // must | warn | info
+  "steps": [{ "no": 4, "env": "test", "trigger": "auto", "title": "…", "who": "…", "where": "…",
+              "nodes": ["develop"], "actions": ["…"], "commands": ["…"] }],  // env:dev | test | prod;trigger:auto | manual | mr
+  "projects": [{ "id": "GigaItApp",                                   // = workspace.json 節點 ID
+                 "test": { "state": "auto", "text": "…" }, "prod": { "state": "pending", "text": "…" }, "notes": "…" }],
+  //           state:auto 自動 | manual 手動 job | pending 已寫未合併 | none 尚未設定 | hand 主機上手動部署
+  "rollback": [{ "target": "…", "how": "…" }]
+}
+```
+
+- 依據各 repo 的 `.gitlab-ci.yml` 與 `giga-api-gateway-bff/docs/DEPLOYMENT.md`;任何專案新增 / 修改 `deploy-test`、`deploy-prod` job,或上架正式區後,更新 `projects` 的狀態與 `updated`。
 
 ## 4. 維護規則(給 AI 與工程師)
 

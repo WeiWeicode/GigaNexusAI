@@ -37,7 +37,7 @@ function toggleTheme() {
         </div>
         <div>
           <div class="b-title">GigaNexus 架構圖</div>
-          <div class="b-sub">專案關係 · 內部架構 · 資料庫 — 保持架構一致</div>
+          <div class="b-sub">專案關係 · 內部架構 · 資料庫 · 部署流程 — 保持架構一致</div>
         </div>
       </a>
       <button class="btn ghost icon" :title="theme === 'dark' ? '淺色模式' : '深色模式'" @click="toggleTheme">

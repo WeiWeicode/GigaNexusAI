@@ -14,7 +14,8 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | --- | --- |
 | 有哪些專案、彼此怎麼連 | [`GigaNexusAIPlan/architecture/workspace.json`](GigaNexusAIPlan/architecture/workspace.json) |
 | 某個專案內部的模組、分層、請求流向與資料庫 | [`GigaNexusAIPlan/architecture/projects/`](GigaNexusAIPlan/architecture/projects/)`<專案>.json`(目前:`giga-api-gateway-bff`) |
-| 上面兩個檔案的欄位意義與維護規則 | [`GigaNexusAIPlan/architecture/README.md`](GigaNexusAIPlan/architecture/README.md) |
+| 程式碼怎麼部署到測試區 / 正式區(GitLab CI/CD、合併與手動上架規則、各專案現況) | [`GigaNexusAIPlan/architecture/deployment.json`](GigaNexusAIPlan/architecture/deployment.json);圖在架構圖網站左側「部署流程(CI/CD)」 |
+| 上面幾個檔案的欄位意義與維護規則 | [`GigaNexusAIPlan/architecture/README.md`](GigaNexusAIPlan/architecture/README.md) |
 | 用圖看(專案關係 / 內部架構 / 資料庫) | 雙擊 `GigaNexusAIPlan/start-architecture.cmd`,或在 `GigaNexusAIPlan/` 執行 `npm install` → `npm run arch`(http://localhost:5191) |
 | 全專案總圖(文字版、流量與權限說明) | [`PROJECT-MAP.md`](PROJECT-MAP.md) |
 

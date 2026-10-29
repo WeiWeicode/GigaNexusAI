@@ -1,9 +1,11 @@
 // 架構圖資料:建置時直接打包 architecture/*.json(不經資料庫、不經 API)
 // 新增子專案 = 新增 architecture/projects/<id>.json,並在 workspace.json 的節點填 detail
 import workspaceJson from '../../architecture/workspace.json'
-import type { ProjectDetail, Workspace } from './types'
+import deploymentJson from '../../architecture/deployment.json'
+import type { Deployment, ProjectDetail, Workspace } from './types'
 
 export const workspace = workspaceJson as Workspace
+export const deployment = deploymentJson as Deployment
 
 const files = import.meta.glob<ProjectDetail>('../../architecture/projects/*.json', { eager: true, import: 'default' })
 

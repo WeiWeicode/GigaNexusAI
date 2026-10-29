@@ -6,6 +6,7 @@ import { categoryOf, nodeOf, projects, workspace } from '../../arch/data'
 import { erDiagram, internalDiagram, LAYER_COLORS, workspaceDiagram, type ColumnMode } from '../../arch/diagrams'
 import type { ArchTab, Component, Selection, Table } from '../../arch/types'
 import Icon from '../Icon.vue'
+import DeployView from './DeployView.vue'
 import DiagramCanvas from './DiagramCanvas.vue'
 
 const props = defineProps<{ theme: 'light' | 'dark' }>()
@@ -17,22 +18,26 @@ const TABS: { id: ArchTab; name: string; hint: string }[] = [
   { id: 'database', name: '資料庫', hint: '資料表、關聯與 Redis 鍵' },
 ]
 
+/** 部署流程頁的網址代號(#/arch/_deploy);專案 ID 不會以底線開頭 */
+const DEPLOY_ID = '_deploy'
+
 function parseHash() {
   const m = /^#\/arch(?:\/([^/?]+))?(?:\/(relations|internal|database))?/.exec(location.hash)
   const id = m?.[1] ? decodeURIComponent(m[1]) : null
   const project = id && nodeOf(id) ? id : null
   const tab = (m?.[2] as ArchTab | undefined) || (project && projects[project] ? 'internal' : 'relations')
-  return { project, tab }
+  return { project, tab, deploy: id === DEPLOY_ID }
 }
 const route = reactive(parseHash())
 
-function hashOf(project: string | null, tab: ArchTab) {
+function hashOf(project: string | null, tab: ArchTab, deploy: boolean) {
+  if (deploy) return `#/arch/${DEPLOY_ID}`
   return project ? `#/arch/${encodeURIComponent(project)}/${tab}` : '#/arch'
 }
 watch(
-  () => [route.project, route.tab],
+  () => [route.project, route.tab, route.deploy],
   () => {
-    const h = hashOf(route.project, route.tab)
+    const h = hashOf(route.project, route.tab, route.deploy)
     if (location.hash !== h) history.replaceState(null, '', h)
   },
   { immediate: true }
@@ -40,13 +45,14 @@ watch(
 function onHash() {
   if (!location.hash.startsWith('#/arch')) return
   const next = parseHash()
-  if (next.project !== route.project || next.tab !== route.tab) selected.value = null
+  if (next.project !== route.project || next.tab !== route.tab || next.deploy !== route.deploy) selected.value = null
   Object.assign(route, next)
 }
 
 function openProject(id: string | null, tab?: ArchTab) {
   route.project = id
   route.tab = tab || (id && projects[id] ? 'internal' : 'relations')
+  route.deploy = false
   selected.value = null
   mainEl.value?.scrollTo({ top: 0 })
 }
@@ -219,6 +225,13 @@ const hits = computed(() => {
   return d.database.tables.filter((t) => has(t.id, t.description) || t.columns.some((c) => has(c.name, c.note))).map((t) => t.id)
 })
 
+function openDeploy() {
+  route.project = null
+  route.deploy = true
+  selected.value = null
+  mainEl.value?.scrollTo({ top: 0 })
+}
+
 function goNode(id: string) {
   if (route.project !== id) openProject(id, 'relations')
   else route.tab = 'relations'
@@ -336,8 +349,11 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-else>
-        <button class="nav-item" :class="{ on: !route.project }" @click="(openProject(null), (sideOpen = false))">
+        <button class="nav-item" :class="{ on: !route.project && !route.deploy }" @click="(openProject(null), (sideOpen = false))">
           <Icon name="layers" />整體架構
+        </button>
+        <button class="nav-item" :class="{ on: route.deploy }" title="程式碼 → GitLab → 測試區 / 正式區" @click="(openDeploy(), (sideOpen = false))">
+          <Icon name="upload" />部署流程(CI/CD)
         </button>
         <div v-for="g in nodesByCat" :key="g.c.id" class="nav-group">
           <div class="side-label"><i class="dot" :style="{ background: g.c.color }" />{{ g.c.name }}</div>
@@ -361,6 +377,9 @@ onBeforeUnmount(() => {
     <main ref="mainEl" class="content">
       <button class="btn sm side-toggle" @click="sideOpen = !sideOpen"><Icon name="filter" :size="14" />專案 / 搜尋</button>
 
+      <DeployView v-if="route.deploy" :theme="props.theme" @open-project="(id) => openProject(id, 'relations')" />
+
+      <template v-else>
       <!-- 標題 -->
       <header class="head">
         <div class="crumbs subtle">
@@ -672,6 +691,7 @@ onBeforeUnmount(() => {
         </div>
         <p class="subtle src">資料依據:{{ detail.sources.join('、') }}</p>
       </section>
+      </template>
     </main>
 
     <!-- 右側詳細面板 -->

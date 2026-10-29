@@ -81,8 +81,31 @@ if (ws) {
   }
 }
 
+// 部署流程(deployment.json):節點、泳道、步驟與專案參照
+const dep = read('deployment.json')
+if (dep) {
+  const file = 'deployment.json'
+  const lanes = dup(file, '泳道', dep.lanes.map((l) => l.id))
+  const dnodes = dup(file, '節點', dep.nodes.map((n) => n.id))
+  dup(file, '步驟', dep.steps.map((s) => String(s.no)))
+  for (const n of dep.nodes) if (!lanes.has(n.lane)) errors.push(`${file}:節點 ${n.id} 的 lane「${n.lane}」不存在`)
+  for (const e of dep.edges) {
+    if (!dnodes.has(e.from) || !dnodes.has(e.to)) errors.push(`${file}:連線 ${e.from} → ${e.to} 的節點不存在`)
+    if (!['auto', 'manual', 'sync'].includes(e.mode)) errors.push(`${file}:連線 ${e.from} → ${e.to} 的 mode 應為 auto / manual / sync`)
+  }
+  for (const s of dep.steps) {
+    if (!['dev', 'test', 'prod'].includes(s.env)) errors.push(`${file}:步驟 ${s.no} 的 env 應為 dev / test / prod`)
+    for (const id of s.nodes) if (!dnodes.has(id)) errors.push(`${file}:步驟 ${s.no} 的節點「${id}」不存在`)
+  }
+  const states = new Set(['auto', 'manual', 'pending', 'none', 'hand'])
+  for (const p of dep.projects) {
+    if (ws && !ws.nodes.some((n) => n.id === p.id)) errors.push(`${file}:專案 ${p.id} 在 workspace.json 沒有節點`)
+    if (!states.has(p.test.state) || !states.has(p.prod.state)) errors.push(`${file}:專案 ${p.id} 的 state 不正確`)
+  }
+}
+
 if (errors.length) {
   console.error(`架構資料有 ${errors.length} 個問題:\n- ` + errors.join('\n- '))
   process.exit(1)
 }
-console.log(`架構資料檢查通過:workspace.json + ${detailFiles.length} 個專案詳細檔`)
+console.log(`架構資料檢查通過:workspace.json + ${detailFiles.length} 個專案詳細檔 + deployment.json`)
