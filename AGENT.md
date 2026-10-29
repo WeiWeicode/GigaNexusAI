@@ -53,7 +53,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | --- | --- | --- | --- | --- |
 | 主機 1 | 10.10.130.123 | Ubuntu 22.04 | GitLab(`:80`)、Registry(`:5050`)、GitLab git SSH(`:2222`)、Portainer(`:9443`) | `user` |
 | 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13 與 10.10.130.124(本機 Hyper-V 測試 VM 經 Default Switch NAT 後的來源))、GitLab Runner、RustIt endpoint-server | `user` |
-| 主機 3 | 10.10.130.122 | Windows 10(`DESKTOP-26TER17`;WSL2 Ubuntu 跑 Docker) | 正式區主機(`giganexus.gigasolar.com.tw`) | `user` |
+| 主機 3 | 10.10.130.122 | Windows 10(`DESKTOP-26TER17`;WSL2 Ubuntu 跑 Docker) | 正式區主機(`giganexus.gigasolar.com.tw`):Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆只開放 `10.10.0.0/16`)、giga-observe-prod、舊系統容器(BPM、MESWeb、GeneralBackend 等,port 5121–5210、RustDesk 21115–21119) | `user` |
 
 AI 以 SSH 金鑰 `~/.ssh/giganexus_ops`(公鑰已放入兩台 `user` 帳號)登入下指令。開發機 `~/.ssh/config` 建議設定:
 
@@ -94,6 +94,9 @@ Host host3 10.10.130.122
 - SSH 登不進主機 1 時的救援方式:Portainer(`https://10.10.130.123:9443`)的 `host-rescue` 容器(特權,主機根目錄掛在 `/host`)→ Console 執行 `nsenter --mount=/host/proc/1/ns/mnt --uts=/host/proc/1/ns/uts --ipc=/host/proc/1/ns/ipc --net=/host/proc/1/ns/net -- bash`,即取得主機 root shell(提示字元為 `root@user-virtual-machine`)。
 - 主機 2 SSH 登入後預設是 PowerShell;Docker 在 WSL 內,用 `wsl -u root -e docker ...` 執行(WSL 預設帳號沒有 docker 權限)。
 - 主機 3(`10.10.130.122`)登入帳號為 `user`(屬於本機 Administrators 群組,所以公鑰放在 `C:\ProgramData\ssh\administrators_authorized_keys`);用 `Administrator` 登入會被中斷連線(`Connection reset`)。SSH 登入後預設是 PowerShell;Docker 在 WSL Ubuntu 內,和主機 2 一樣用 `wsl -u root -e docker ...` 執行。
+- 主機 3 的 WSL **查不到外部 DNS**(`apt-get`、Docker Hub 都不通);映像從 GitLab Registry(`10.10.130.123:5050`)拉,系統套件要從主機 2 的 apt 快取複製 `.deb` 安裝。
+- 主機 3 的 **舊系統不能受影響**:改防火牆或 Docker 設定前,先確認舊系統的 port 仍可連線。防火牆規則 `Docker-WSL2-AllServices-TCP`(舊系統 port,來源不限)、`Docker-Portainer`(8000、9000、9444,只開放 `10.10.112.0/24`)、`GigaNexus-Agent-9443`;2026-10-29 收緊前的完整備份在 `C:\Users\user\fw-backup-20261029.wfw`(`netsh advfirewall import` 還原)。
+- 主機 3 的 NAS 掛載(`/etc/fstab`):`/mnt/nas-docker`(`docker-backup`,file-api 備份寫 `giga-files/prod/`)、`/srv/giganexus/nas-rustit`(RustIT 唯讀,`rustit-upload`,兩區共用帳號見 RustIt `docs/S1-SIGNING-DESIGN.md` §1)。
 
 ## 6. 本 repo(工作區文件)收錄範圍
 
