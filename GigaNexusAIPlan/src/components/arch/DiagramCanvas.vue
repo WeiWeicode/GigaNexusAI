@@ -38,14 +38,24 @@ function cssVar(name: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
+/** 有文字超出 Mermaid 量測的寬度(會被裁掉)的標籤 */
+function overflowing() {
+  return [...(host.value?.querySelectorAll('foreignObject') || [])].some((fo) => {
+    const el = fo.firstElementChild as HTMLElement | null
+    return !!el && el.scrollWidth > Number(fo.getAttribute('width')) + 1
+  })
+}
+
 let latest = 0
-async function render() {
+async function render(retry = true) {
   if (!host.value) return
   // 篩選連續切換時,只採用最後一次的繪製結果
   const token = ++latest
   rendering.value = true
   error.value = ''
   try {
+    // 字型未就緒時 Mermaid 量到的寬度偏窄,標籤文字會被裁掉
+    await document.fonts?.ready
     const mermaid = await loadMermaid()
     const dark = props.theme === 'dark'
     mermaid.initialize({
@@ -81,6 +91,11 @@ async function render() {
     const { svg } = await mermaid.render(`arch-diagram-${++seq}`, props.code)
     if (token !== latest || !host.value) return
     host.value.innerHTML = svg
+    // 中文備援字型(如微軟正黑體)第一次使用時才載入,量測與實際顯示的寬度不同:重畫一次即可量到正確寬度
+    if (retry && overflowing()) {
+      await new Promise((r) => setTimeout(r, 50))
+      if (token === latest) return render(false)
+    }
     indexElements()
     applyMarks()
     await nextTick()
@@ -245,7 +260,7 @@ function scrollToSelected() {
   ty.value += vr.top + vr.height / 2 - (er.top + er.height / 2)
 }
 
-watch(() => [props.code, props.theme], render)
+watch(() => [props.code, props.theme], () => render())
 watch(() => [props.hits, props.near], applyMarks, { deep: true })
 watch(
   () => props.selected,
@@ -385,6 +400,10 @@ defineExpose({ fit })
   bottom: 8px;
   font-size: 11px;
   pointer-events: none;
+}
+/* 重畫後仍量不準時(瀏覽器縮放、字型差異),寧可稍微超出框線也不裁掉文字 */
+.stage :deep(foreignObject) {
+  overflow: visible;
 }
 .stage :deep(g.clickable) {
   cursor: pointer;
