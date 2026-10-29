@@ -140,3 +140,58 @@ export type Selection =
   | { kind: 'node'; id: string }
   | { kind: 'component'; projectId: string; id: string }
   | { kind: 'table'; projectId: string; id: string }
+
+// ---------- 部署流程(architecture/deployment.json) ----------
+
+export type DeployEnv = 'dev' | 'test' | 'prod'
+
+export interface DeployNode {
+  id: string
+  lane: string
+  kind: 'actor' | 'branch' | 'mr' | 'job' | 'store' | 'runner' | 'env'
+  name: string
+  /** 圖上第二行(主機、觸發方式) */
+  sub?: string
+  detail: string
+}
+
+export interface DeployEdge {
+  from: string
+  to: string
+  label: string
+  /** auto 自動 · manual 人工操作 · sync 同步 / 備份 */
+  mode: 'auto' | 'manual' | 'sync'
+}
+
+export interface DeployStep {
+  no: number
+  env: DeployEnv
+  trigger: 'auto' | 'manual' | 'mr'
+  title: string
+  who: string
+  where: string
+  nodes: string[]
+  actions: string[]
+  commands?: string[]
+}
+
+export interface DeployProjectEnv {
+  /** auto 自動部署 · manual 手動 job · pending 已寫未合併 · none 尚未設定 · hand 主機上手動部署 */
+  state: 'auto' | 'manual' | 'pending' | 'none' | 'hand'
+  text: string
+}
+
+export interface Deployment {
+  version: number
+  updated: string
+  title: string
+  summary: string
+  sources: string[]
+  lanes: { id: string; name: string; color: string; description: string }[]
+  nodes: DeployNode[]
+  edges: DeployEdge[]
+  rules: { level: 'must' | 'warn' | 'info'; title: string; body: string }[]
+  steps: DeployStep[]
+  projects: { id: string; test: DeployProjectEnv; prod: DeployProjectEnv; notes: string }[]
+  rollback: { target: string; how: string }[]
+}

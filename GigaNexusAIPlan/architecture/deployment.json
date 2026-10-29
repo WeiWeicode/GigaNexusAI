@@ -1,0 +1,596 @@
+{
+  "version": 1,
+  "updated": "2026-10-29",
+  "title": "程式碼部署流程(GitLab → 測試區 / 正式區)",
+  "summary": "程式碼從工程師的工作分支推到公司 GitLab(主機 1),經 Merge Request 合併到 develop 後由主機 2 的 Runner 自動部署測試區;測試區驗收通過,再經 MR 合併到 main,由 Maintainer 在 GitLab 手動按下 deploy-prod,主機 3 的 Protected Runner 拉取同一個 commit SHA 的映像檔上架正式區。",
+  "sources": [
+    "giga-api-gateway-bff/docs/DEPLOYMENT.md §2–§4",
+    "giga-api-gateway-bff/docs/GITLAB-SETUP.md",
+    "giga-api-gateway-bff/AGENT.md §10.10(Git 分支與推送)",
+    "各 repo 的 .gitlab-ci.yml(2026-10-29 本機工作副本)",
+    "PROD-DEPLOY-HANDOFF.md(2026-10-29 正式區上架交接)",
+    "AGENT.md §5(主機連線)"
+  ],
+  "lanes": [
+    {
+      "id": "dev",
+      "name": "① 開發:工程師開發機",
+      "color": "#64748b",
+      "description": "本機開發、測試,只推送工作分支;所有分支自動跑 check"
+    },
+    {
+      "id": "test",
+      "name": "② 測試區:合併 develop 自動部署",
+      "color": "#2563eb",
+      "description": "GitLab(主機 1)合併 develop → 主機 2 Runner windows-runner 自動部署測試區;映像推到主機 1 Container Registry :5050(tag = commit SHA)"
+    },
+    {
+      "id": "prod",
+      "name": "③ 正式區:合併 main 後手動上架",
+      "color": "#12a57c",
+      "description": "GitLab(主機 1)合併 main → Maintainer 按 ▶ deploy-prod → 主機 3 Protected Runner 上架;從 Registry 拉同一個 SHA,合併後同步 GitHub 鏡像"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "engineer",
+      "lane": "dev",
+      "kind": "actor",
+      "name": "工程師 / Claude",
+      "sub": "開發機",
+      "detail": "在 feature/* 等工作分支開發;AI 不推 develop / main"
+    },
+    {
+      "id": "feature",
+      "lane": "dev",
+      "kind": "branch",
+      "name": "feature/* 工作分支",
+      "sub": "由 develop 分出",
+      "detail": "由 develop 分出;緊急修正 hotfix/* 由 main 分出"
+    },
+    {
+      "id": "pl-check",
+      "lane": "dev",
+      "kind": "job",
+      "name": "check",
+      "sub": "所有分支自動",
+      "detail": "lint、型別檢查、單元測試、SQL Server 2012 語法檢查、nginx -t;失敗不能合併"
+    },
+    {
+      "id": "mr-develop",
+      "lane": "test",
+      "kind": "mr",
+      "name": "MR → develop",
+      "sub": "GitLab 主機 1",
+      "detail": "check 通過後由 Maintainer(需求方)審核合併;AI 只開 MR"
+    },
+    {
+      "id": "develop",
+      "lane": "test",
+      "kind": "branch",
+      "name": "develop",
+      "sub": "Protected",
+      "detail": "只能經 MR 合併;合併即自動觸發測試區部署"
+    },
+    {
+      "id": "runner-test",
+      "lane": "test",
+      "kind": "runner",
+      "name": "Runner windows-runner",
+      "sub": "主機 2 WSL",
+      "detail": "主機 2 WSL 內 Linux shell executor:build --pull、推 Registry、部署;另有 Windows 本機 Runner(tag windows)建置 RustIt Agent"
+    },
+    {
+      "id": "registry-push",
+      "lane": "test",
+      "kind": "store",
+      "name": "Registry :5050 推送",
+      "sub": "主機 1 · tag = commit SHA",
+      "detail": "主機 2 建置的映像推到 GitLab Container Registry,tag = commit SHA;Gateway 另發佈 @giganexus npm 套件。下游專案的測試區目前在主機 2 直接 compose build"
+    },
+    {
+      "id": "env-test",
+      "lane": "test",
+      "kind": "env",
+      "name": "測試區容器",
+      "sub": "主機 2 10.10.130.124",
+      "detail": "Gateway(nginx、bff-1/2、worker、redis)、itapp-api、portal-api、file-api、endpoint-server、giga-observe;https://giganexus-test.gigasolar.com.tw"
+    },
+    {
+      "id": "accept",
+      "lane": "test",
+      "kind": "actor",
+      "name": "測試區驗收",
+      "sub": "需求方 / 同仁",
+      "detail": "需求方 / 同仁實測;Gemini 執行測試並寫測試報告;不過就回到開發修正"
+    },
+    {
+      "id": "mr-main",
+      "lane": "prod",
+      "kind": "mr",
+      "name": "MR develop → main",
+      "sub": "fast-forward",
+      "detail": "以 fast-forward 合併,main 的 SHA 與測試區相同;由 Maintainer 合併"
+    },
+    {
+      "id": "main",
+      "lane": "prod",
+      "kind": "branch",
+      "name": "main",
+      "sub": "Protected",
+      "detail": "只能經 MR 合併;合併後不會自動上架"
+    },
+    {
+      "id": "pl-prod",
+      "lane": "prod",
+      "kind": "job",
+      "name": "deploy-prod ▶ 手動",
+      "sub": "Maintainer 點擊",
+      "detail": "main Pipeline 中停在「手動」的 Protected job,需 Maintainer 在 GitLab → CI/CD → Pipelines 點 ▶"
+    },
+    {
+      "id": "registry-pull",
+      "lane": "prod",
+      "kind": "store",
+      "name": "Registry :5050 拉取",
+      "sub": "同一個 SHA",
+      "detail": "主機 3 以 compose pull --policy missing 拉測試區測過的同一個 SHA;主機 3 連不到 Docker Hub、不能建置"
+    },
+    {
+      "id": "runner-prod",
+      "lane": "prod",
+      "kind": "runner",
+      "name": "Runner host3-prod",
+      "sub": "主機 3 · tag prod-deploy",
+      "detail": "主機 3 WSL 內 shell executor,concurrent = 1;只接受 Protected 分支的 job;不建置,只 pull"
+    },
+    {
+      "id": "env-prod",
+      "lane": "prod",
+      "kind": "env",
+      "name": "正式區容器",
+      "sub": "主機 3 10.10.130.122",
+      "detail": "https://giganexus.gigasolar.com.tw;與舊系統(BPM、MESWeb 等)同一台主機,舊系統不能受影響"
+    },
+    {
+      "id": "github",
+      "lane": "prod",
+      "kind": "store",
+      "name": "GitHub 鏡像",
+      "sub": "備份",
+      "detail": "工作區根目錄、RustIt 的 origin;develop / main 合併後 fast-forward 同步"
+    }
+  ],
+  "edges": [
+    {
+      "from": "engineer",
+      "to": "feature",
+      "label": "① commit",
+      "mode": "auto"
+    },
+    {
+      "from": "feature",
+      "to": "pl-check",
+      "label": "② git push 工作分支",
+      "mode": "auto"
+    },
+    {
+      "from": "pl-check",
+      "to": "mr-develop",
+      "label": "③ check 通過後開 MR → develop",
+      "mode": "auto"
+    },
+    {
+      "from": "mr-develop",
+      "to": "develop",
+      "label": "④ Maintainer 審核合併",
+      "mode": "manual"
+    },
+    {
+      "from": "develop",
+      "to": "runner-test",
+      "label": "⑤ 自動觸發 Pipeline",
+      "mode": "auto"
+    },
+    {
+      "from": "runner-test",
+      "to": "registry-push",
+      "label": "build --pull、push",
+      "mode": "auto"
+    },
+    {
+      "from": "registry-push",
+      "to": "env-test",
+      "label": "⑥ migration → 逐一更新 → 冒煙",
+      "mode": "auto"
+    },
+    {
+      "from": "env-test",
+      "to": "accept",
+      "label": "⑦ 驗收",
+      "mode": "manual"
+    },
+    {
+      "from": "accept",
+      "to": "mr-main",
+      "label": "⑧ 驗收通過,開 MR develop → main",
+      "mode": "manual"
+    },
+    {
+      "from": "mr-main",
+      "to": "main",
+      "label": "⑨ Maintainer 合併",
+      "mode": "manual"
+    },
+    {
+      "from": "main",
+      "to": "pl-prod",
+      "label": "⑩ 停在手動 job",
+      "mode": "auto"
+    },
+    {
+      "from": "pl-prod",
+      "to": "registry-pull",
+      "label": "⑪ Maintainer 點 ▶",
+      "mode": "manual"
+    },
+    {
+      "from": "registry-pull",
+      "to": "runner-prod",
+      "label": "⑫ pull 同 SHA",
+      "mode": "auto"
+    },
+    {
+      "from": "runner-prod",
+      "to": "env-prod",
+      "label": "⑬ migration → 逐一更新 → 冒煙",
+      "mode": "auto"
+    },
+    {
+      "from": "env-prod",
+      "to": "github",
+      "label": "⑭ 同步 GitHub",
+      "mode": "sync"
+    }
+  ],
+  "rules": [
+    {
+      "level": "must",
+      "title": "正式區:必須合併 main,再手動上架",
+      "body": "合併到 main 不會自動部署。main 的 Pipeline 會停在 deploy-prod(手動),由 Maintainer 在 GitLab 點擊 ▶ 才會派給主機 3 的 prod-deploy Runner 上架。"
+    },
+    {
+      "level": "must",
+      "title": "測試區:合併 develop 就自動部署",
+      "body": "MR 合併進 develop 後,主機 2 的 windows-runner 自動執行 build 與 deploy-test(含 rbac-test),不需人工操作。"
+    },
+    {
+      "level": "must",
+      "title": "develop / main 只經 MR 由 Maintainer 合併",
+      "body": "兩個分支都是 Protected。開發在 feature/*;AI 不得推送 develop / main、不得 force push;推送被拒時改推工作分支並開 MR,不找繞過方式。"
+    },
+    {
+      "level": "must",
+      "title": "正式區用的是測試區測過的同一個映像",
+      "body": "映像檔 tag = commit SHA。develop → main 以 fast-forward 合併,main 的 SHA 等於測試區的 SHA,正式區直接拉同一個映像、不重新建置;非 fast-forward(merge commit)時,main 的 build 會先在主機 2 重建再上架。"
+    },
+    {
+      "level": "must",
+      "title": "主機 3 的舊系統不能受影響",
+      "body": "正式區與 BPM、MESWeb、GeneralBackend 等舊系統容器同機。改防火牆 / Docker 前先告知需求方;上架後從開發機與主機 2 測一次舊系統 port。Nginx 重建會讓 :9443 與 WebSocket 短暫斷線,安排離峰。"
+    },
+    {
+      "level": "warn",
+      "title": "主機 3 不能建置、連不到 Docker Hub",
+      "body": "主機 3 的 WSL 查不到外部 DNS。所有映像在主機 2 建置推到 Registry,主機 3 只 pull(--policy missing);redis、nginx-prometheus-exporter、alpine 等官方映像改版前先在主機 2 docker save、主機 3 docker load。"
+    },
+    {
+      "level": "warn",
+      "title": "建置一律加 --pull",
+      "body": "主機 2 上的 node:22-alpine 標籤曾被其他專案覆寫(2026-10-02,NODE_ENV=production 導致缺 tsc),所有 build 都以 --pull 取官方基底映像。"
+    },
+    {
+      "level": "warn",
+      "title": "migration 只往前、要向下相容",
+      "body": "先加欄位 / 表 → 程式改用 → 下一版才刪舊欄位;不降版,有問題以新的 migration 修正。測試區自動套用,正式區隨 deploy-prod 手動核可套用;giga-file-service 的 migration 由開發者電腦 npm run db:migrate 套用。"
+    },
+    {
+      "level": "info",
+      "title": "路由與權限不隨程式部署",
+      "body": "路由、權限存在各區資料庫,兩區不互通。下游後端啟動後自動註冊為該區草稿,IT 在各區分別檢視後核可發佈;選單權限以 rbac-test / rbac-prod job 套用。"
+    },
+    {
+      "level": "info",
+      "title": "機密不進 Git",
+      "body": "env 檔在主機 /srv/giganexus/deploy/*.env,機密在 *-secrets/ 目錄,以 compose secrets 掛載;含密碼的腳本由需求方執行。"
+    }
+  ],
+  "steps": [
+    {
+      "no": 1,
+      "env": "dev",
+      "trigger": "manual",
+      "title": "在工作分支開發",
+      "who": "工程師 / Claude",
+      "where": "開發機",
+      "nodes": [
+        "engineer",
+        "feature"
+      ],
+      "actions": [
+        "由最新 develop 開 feature/<主題>(緊急修正由 main 開 hotfix/*)",
+        "本機開發、執行單元測試;前端經 proxy 打測試區 Gateway",
+        "commit 訊息寫清楚範圍(feat / fix / ci / docs)"
+      ],
+      "commands": [
+        "git switch develop && git pull gitlab develop",
+        "git switch -c feature/<主題>"
+      ]
+    },
+    {
+      "no": 2,
+      "env": "dev",
+      "trigger": "auto",
+      "title": "推送工作分支,自動跑 check",
+      "who": "工程師 / Claude",
+      "where": "開發機 → GitLab",
+      "nodes": [
+        "feature",
+        "pl-check"
+      ],
+      "actions": [
+        "只推送工作分支到 GitLab(根目錄、RustIt 另推 GitHub origin)",
+        "所有分支的 Pipeline 都會跑 check:lint、型別檢查、單元測試、SQL Server 2012 語法、nginx -t",
+        "check 失敗不能合併;修正後再推"
+      ],
+      "commands": [
+        "git push gitlab feature/<主題>"
+      ]
+    },
+    {
+      "no": 3,
+      "env": "test",
+      "trigger": "mr",
+      "title": "開 MR 合併到 develop",
+      "who": "工程師開 MR,Maintainer 合併",
+      "where": "GitLab 網頁",
+      "nodes": [
+        "mr-develop",
+        "develop"
+      ],
+      "actions": [
+        "在 GitLab 建立 Merge Request:feature/* → develop",
+        "Maintainer(需求方)審核後合併;AI 只能開 MR,不能合併",
+        "合併後 develop 的 Pipeline 自動開始"
+      ]
+    },
+    {
+      "no": 4,
+      "env": "test",
+      "trigger": "auto",
+      "title": "develop Pipeline 自動部署測試區",
+      "who": "主機 2 Runner(windows-runner)",
+      "where": "主機 2 WSL",
+      "nodes": [
+        "develop",
+        "runner-test",
+        "registry-push",
+        "env-test"
+      ],
+      "actions": [
+        "Gateway:build --pull 建置 bff、nginx、nginx-log-agent 映像並推 Registry(tag = SHA);同時發佈 @giganexus npm 套件",
+        "下游專案(GigaItApp、Portal、file-service、RustIt endpoint-server):在主機 2 直接 compose build --pull",
+        "部署順序:migration → redis → bff-1 → 等 /readyz → bff-2 → worker → nginx → exporter → log-agent;SPA 以一次性容器發佈到 gw_www volume(保留上一版)",
+        "冒煙測試:/healthz、/api/auth/me 回 401、各 SPA 首頁 200、下游 API 無內部 Token 回 401",
+        "rbac-test:以測試區 Gateway 映像套用 deploy/gateway-rbac.yaml"
+      ]
+    },
+    {
+      "no": 5,
+      "env": "test",
+      "trigger": "manual",
+      "title": "測試區驗收",
+      "who": "需求方 / 同仁;Gemini 執行測試",
+      "where": "https://giganexus-test.gigasolar.com.tw",
+      "nodes": [
+        "env-test",
+        "accept"
+      ],
+      "actions": [
+        "實際操作驗收新功能",
+        "Gemini 執行既有測試並寫 docs/test-reports/YYYY-MM-DD-<主題>.md",
+        "新的下游路由在測試區為草稿,IT 檢視後核可發佈",
+        "驗收不過:回到步驟 1 修正,不直接改測試區容器"
+      ]
+    },
+    {
+      "no": 6,
+      "env": "prod",
+      "trigger": "mr",
+      "title": "開 MR develop → main(fast-forward)",
+      "who": "工程師開 MR,Maintainer 合併",
+      "where": "GitLab 網頁",
+      "nodes": [
+        "accept",
+        "mr-main",
+        "main"
+      ],
+      "actions": [
+        "建立 MR:develop → main,合併方式選 fast-forward,讓 main 的 SHA 等於測試區的 SHA",
+        "Maintainer 合併;AI 不得推送 main",
+        "合併到 main 不會自動上架正式區"
+      ]
+    },
+    {
+      "no": 7,
+      "env": "prod",
+      "trigger": "auto",
+      "title": "main Pipeline:check、建置,停在手動 job",
+      "who": "主機 2 Runner",
+      "where": "GitLab Pipeline",
+      "nodes": [
+        "main",
+        "pl-prod"
+      ],
+      "actions": [
+        "check 再跑一次",
+        "Gateway build:Registry 已有此 SHA 的映像就略過;非 fast-forward 時在主機 2 重建",
+        "GigaItApp build-prod:在主機 2 建置 itapp-api、spa-it-admin 推 Registry(主機 3 無法建置)",
+        "deploy-prod / rbac-prod 顯示為「手動」(▶),等待 Maintainer"
+      ]
+    },
+    {
+      "no": 8,
+      "env": "prod",
+      "trigger": "manual",
+      "title": "手動上架正式區(deploy-prod)",
+      "who": "Maintainer 點擊;主機 3 Runner 執行",
+      "where": "GitLab → 主機 3 WSL",
+      "nodes": [
+        "pl-prod",
+        "registry-pull",
+        "runner-prod",
+        "env-prod"
+      ],
+      "actions": [
+        "在 GitLab → CI/CD → Pipelines 開啟 main 的 Pipeline,點 deploy-prod 的 ▶",
+        "Protected job 只派給主機 3 的 host3-prod Runner(tag prod-deploy);正式區機密只在此時可用",
+        "compose pull --policy missing:拉同一個 SHA 的映像,本機已有的不重拉",
+        "與測試區相同的部署順序與冒煙測試;Nginx 重建時 :9443 / WebSocket 短暫斷線 → 選離峰",
+        "GigaItApp 另按 rbac-prod ▶ 套用正式區選單權限"
+      ]
+    },
+    {
+      "no": 9,
+      "env": "prod",
+      "trigger": "manual",
+      "title": "上架後確認",
+      "who": "Claude / 需求方",
+      "where": "正式區、主機 2",
+      "nodes": [
+        "env-prod"
+      ],
+      "actions": [
+        "外部打 80(→301)、443 /healthz 200、/api/auth/me 401、:9443",
+        "giga-observe 正式區有收到指標",
+        "下游後端自動註冊的路由是正式區草稿,IT 檢視後核可發佈",
+        "從開發機與主機 2 各測一次舊系統 port(主機 2 tcp-check.ps1)"
+      ],
+      "commands": [
+        "ssh host2 \"powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/user/tcp-check.ps1\""
+      ]
+    },
+    {
+      "no": 10,
+      "env": "dev",
+      "trigger": "manual",
+      "title": "同步 GitHub 鏡像",
+      "who": "Claude / 工程師",
+      "where": "開發機",
+      "nodes": [
+        "develop",
+        "main",
+        "github"
+      ],
+      "actions": [
+        "develop / main 在 GitLab 合併後,把 GitHub 對應分支 fast-forward 到相同 commit(工作區根目錄、RustIt)",
+        "只做 fast-forward,不 force push"
+      ],
+      "commands": [
+        "git fetch gitlab && git push origin gitlab/main:main"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "giga-api-gateway-bff",
+      "test": {
+        "state": "auto",
+        "text": "develop 自動:check → build(推 Registry)→ publish:packages → deploy-test"
+      },
+      "prod": {
+        "state": "manual",
+        "text": "main 手動 deploy-prod(prod-deploy)。2026-10-29 已上架:main = 2380762,job 1638 成功"
+      },
+      "notes": "提供 SPA 部署範本 ci-templates/spa-deploy.yml(尚未在 Runner 實際執行過);部署後寫入 gateway-image-tag 供下游 rbac job 使用"
+    },
+    {
+      "id": "GigaItApp",
+      "test": {
+        "state": "auto",
+        "text": "develop 自動:deploy-test(主機 2 建置 itapp-api、/it/ 前端)→ rbac-test"
+      },
+      "prod": {
+        "state": "pending",
+        "text": "build-prod / deploy-prod ▶ / rbac-prod ▶ 已寫在 feature/deploy-prod,尚未合併 develop / main"
+      },
+      "notes": "正式區映像在主機 2 建置推 Registry,主機 3 只 pull"
+    },
+    {
+      "id": "giga-Portal",
+      "test": {
+        "state": "auto",
+        "text": "develop 自動:deploy-test(SPA /)、deploy-api-test(portal-api)→ rbac-test"
+      },
+      "prod": {
+        "state": "none",
+        "text": "尚未設定 deploy-prod;正式區 gw_www 的 portal 是舊版"
+      },
+      "notes": "比照 GigaItApp 新增 build-prod / deploy-prod / rbac-prod"
+    },
+    {
+      "id": "giga-file-service",
+      "test": {
+        "state": "auto",
+        "text": "develop 自動:deploy-test(file-api)"
+      },
+      "prod": {
+        "state": "none",
+        "text": "尚未設定 deploy-prod"
+      },
+      "notes": "migration 不在 CI,由開發者電腦 npm run db:migrate;正式區 file.env 已補 FILE_BACKUP_HOST_ROOT(prod 路徑)"
+    },
+    {
+      "id": "RustIt",
+      "test": {
+        "state": "auto",
+        "text": "develop 自動:deploy-test(ItAgentBack endpoint-server + Mongo / Redis)"
+      },
+      "prod": {
+        "state": "none",
+        "text": "尚未設定 deploy-prod"
+      },
+      "notes": "Agent MSI:tag rustit-v* 或手動於 Windows Runner 建置未簽章檔,簽章人員本機簽章後 publish-release.ps1 上架 NAS"
+    },
+    {
+      "id": "giga-observe",
+      "test": {
+        "state": "hand",
+        "text": "沒有 .gitlab-ci.yml,於主機上手動 compose 部署"
+      },
+      "prod": {
+        "state": "hand",
+        "text": "已手動部署運作中(compose 專案 giga-observe-prod)"
+      },
+      "notes": "測試區、正式區各一套、各一把 Key,不可跨區送"
+    }
+  ],
+  "rollback": [
+    {
+      "target": "BFF / worker / Nginx",
+      "how": "GitLab 對上一個成功的 Pipeline 重新執行 deploy job(拉舊 SHA 的映像,依相同順序逐一更新)"
+    },
+    {
+      "target": "SPA(/、/it/ 等)",
+      "how": "執行 rollback(把 gw_www 的 current 指回上一版;保留最近 5 版,不需重啟 Nginx)"
+    },
+    {
+      "target": "資料庫",
+      "how": "不降版,以新的 migration 修正(forward fix)"
+    },
+    {
+      "target": "路由設定",
+      "how": "以發佈版本回滾,5 秒內生效"
+    }
+  ]
+}
