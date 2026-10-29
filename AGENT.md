@@ -53,7 +53,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | --- | --- | --- | --- | --- |
 | 主機 1 | 10.10.130.123 | Ubuntu 22.04 | GitLab(`:80`)、Registry(`:5050`)、GitLab git SSH(`:2222`)、Portainer(`:9443`) | `user` |
 | 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13 與 10.10.130.124(本機 Hyper-V 測試 VM 經 Default Switch NAT 後的來源))、GitLab Runner、RustIt endpoint-server | `user` |
-| 主機 3 | 10.10.130.122 | Windows 10(Docker Desktop WSL2,`GSMC-Docker`) | 正式區主機(`giganexus.gigasolar.com.tw`) | `Administrator` |
+| 主機 3 | 10.10.130.122 | Windows 10(`DESKTOP-26TER17`;WSL2 Ubuntu 跑 Docker) | 正式區主機(`giganexus.gigasolar.com.tw`) | `user` |
 
 AI 以 SSH 金鑰 `~/.ssh/giganexus_ops`(公鑰已放入兩台 `user` 帳號)登入下指令。開發機 `~/.ssh/config` 建議設定:
 
@@ -83,7 +83,7 @@ Host host2
 Host host3 10.10.130.122
     HostName 10.10.130.122
     Port 22
-    User Administrator
+    User user
     IdentityFile ~/.ssh/giganexus_ops
     IdentitiesOnly yes
 ```
@@ -93,7 +93,7 @@ Host host3 10.10.130.122
 - 主機 1 開著 **ufw(INPUT 預設 DROP)**,新增對外服務 port 要 `ufw allow`。2026-10-01 已放行 `3389/tcp`(xrdp)給 `10.10.0.0/16`。
 - SSH 登不進主機 1 時的救援方式:Portainer(`https://10.10.130.123:9443`)的 `host-rescue` 容器(特權,主機根目錄掛在 `/host`)→ Console 執行 `nsenter --mount=/host/proc/1/ns/mnt --uts=/host/proc/1/ns/uts --ipc=/host/proc/1/ns/ipc --net=/host/proc/1/ns/net -- bash`,即取得主機 root shell(提示字元為 `root@user-virtual-machine`)。
 - 主機 2 SSH 登入後預設是 PowerShell;Docker 在 WSL 內,用 `wsl -u root -e docker ...` 執行(WSL 預設帳號沒有 docker 權限)。
-- 主機 3(`10.10.130.122`)登入帳號為 `Administrator`(公鑰放在 `C:\ProgramData\ssh\administrators_authorized_keys`),SSH 登入後預設是 PowerShell。
+- 主機 3(`10.10.130.122`)登入帳號為 `user`(屬於本機 Administrators 群組,所以公鑰放在 `C:\ProgramData\ssh\administrators_authorized_keys`);用 `Administrator` 登入會被中斷連線(`Connection reset`)。SSH 登入後預設是 PowerShell;Docker 在 WSL Ubuntu 內,和主機 2 一樣用 `wsl -u root -e docker ...` 執行。
 
 ## 6. 本 repo(工作區文件)收錄範圍
 
