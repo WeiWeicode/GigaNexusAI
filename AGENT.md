@@ -31,6 +31,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `RustIt/` | Windows 端點資產蒐集與控管:`RustAgent/`(Rust:Agent、托盤)、`ItAgentBack/`(Node.js:Endpoint Server,測試區 2026-10-07 起運作) | `AGENT.md`、`docs/PROJECT-MAP.md`、`docs/INTEGRATION-PLAN.md` |
 | `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
 | `giga-file-service/` | 附件服務(W11,2026-10-08 測試區上線:F1 檔案 API、F2 NAS 備份、F6 BPM 附件 191 / 190;F4 / F7 規劃):`file-api` :51272,UUID 上傳 / 下載、WSL + NAS 備份、BPM 附件唯讀、舊系統對照與舊格式相容層;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `AGENT.md`、`docs/HANDOFF.md`、`docs/PRD.md`、`docs/PROJECT-MAP.md` |
+| `NetOps/` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、AI 問答、網通知識庫。目前部署於 IIS,規劃接入 Gateway(`/netops/`、`netops-api` :51292,W12) | `AGENT.md`、`docs/ARCHITECTURE.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md` |
 | `GigaNexusAIPlan/` | 平台建置甘特圖(NexusPlan)與**架構圖網站**、架構資料 | `README.md`、`architecture/README.md` |
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 

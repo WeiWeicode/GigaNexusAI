@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-28",
+  "updated": "2026-10-30",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -82,6 +82,34 @@
       "tech": ["Node.js 22", "Fastify 5", "TypeScript", "SQL Server 2012"],
       "endpoints": ["file-api :51272(/api/file/*,經 BFF;上傳經 Nginx auth_request 直送,30 MB)"],
       "docs": ["giga-file-service/AGENT.md", "giga-file-service/docs/HANDOFF.md", "giga-file-service/docs/PRD.md", "giga-file-service/docs/IMPL-PLAN.md", "giga-file-service/docs/API.md"]
+    },
+    {
+      "id": "NetOps",
+      "name": "NetOps",
+      "label": "資訊網通管理系統",
+      "category": "app",
+      "kind": "repo",
+      "status": "active",
+      "repo": "NetOps",
+      "detail": null,
+      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、AI 問答與分析、網通知識庫(向量搜尋、外部 IP 自動學習)。目前部署於 IIS /NetOps(Express + 自建登入);規劃(W12)接入 Gateway:SPA /netops/、netops-api :51292、登入改單一入口。第一版資料存檔案,未來改由服務直接寫入資料庫。",
+      "tech": ["Vue 3", "Element Plus", "Express 5(現行)", "Fastify 5 + TypeScript(目標)"],
+      "endpoints": ["現行 IIS /NetOps", "目標 /netops/、netops-api :51292(/api/netops/*,經 BFF)"],
+      "docs": ["NetOps/AGENT.md", "NetOps/docs/ARCHITECTURE.md", "NetOps/docs/IMPL-PLAN.md", "NetOps/docs/PROJECT-MAP.md", "NetOps/README.md"]
+    },
+    {
+      "id": "netops-sources",
+      "name": "NetOps 外部相依",
+      "label": "FTP / vLLM / Qdrant",
+      "category": "external",
+      "kind": "external",
+      "status": "active",
+      "repo": null,
+      "detail": null,
+      "summary": "FTP 10.10.130.66(PA-560 與 AD 事件 log,唯讀)、vLLM 10.10.130.45(:8080 問答、:8081 embedding)、Qdrant 10.10.130.46(知識庫向量)。",
+      "tech": ["FTP", "OpenAI 相容 API", "Qdrant"],
+      "endpoints": ["10.10.130.66:21", "10.10.130.45:8080、:8081", "10.10.130.46:6333"],
+      "docs": ["NetOps/docs/ARCHITECTURE.md"]
     },
     {
       "id": "GigaItApp",
@@ -365,6 +393,11 @@
     }
   ],
   "relations": [
+    { "from": "giga-api-gateway-bff", "to": "NetOps", "type": "proxy", "label": "Nginx 託管 SPA /netops/;/api/netops/* → netops-api :51292", "status": "planned" },
+    { "from": "NetOps", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit、@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "planned" },
+    { "from": "GigaItApp", "to": "NetOps", "type": "nav", "label": "權限設定(netops.*)、應用切換", "status": "planned" },
+    { "from": "NetOps", "to": "giga-observe", "type": "api", "label": "netops-api 紀錄與心跳(backend-sdk monitor)", "status": "planned" },
+    { "from": "NetOps", "to": "netops-sources", "type": "readonly", "label": "FTP log 串流讀取;LLM 問答與 embedding;Qdrant 向量", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "endpoint-server", "to": "giga-observe", "type": "api", "label": "endpoint-api / endpoint-agent 紀錄與心跳(含 WebSocket 連線、在線數)", "status": "active" },

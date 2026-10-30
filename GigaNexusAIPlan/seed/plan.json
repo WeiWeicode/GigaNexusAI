@@ -10,7 +10,8 @@
     { "id": "W8", "name": "整合舊有服務", "color": "#475569", "sort": 8 },
     { "id": "W9", "name": "API / Nginx 監控(觀測)", "color": "#0d9488", "sort": 6 },
     { "id": "W10", "name": "通知與公告", "color": "#ea580c", "sort": 9 },
-    { "id": "W11", "name": "附件服務", "color": "#65a30d", "sort": 10 }
+    { "id": "W11", "name": "附件服務", "color": "#65a30d", "sort": 10 },
+    { "id": "W12", "name": "資訊網通管理系統接入(NetOps)", "color": "#0369a1", "sort": 11 }
   ],
   "tasks": [
     { "id": "W1-7", "workstreamId": "W1", "parentId": "W1-4", "name": "測試區CICD可用", "owner": "", "start": "2026-09-30", "end": "2026-09-30", "progress": 100, "status": "done", "type": "milestone" },
@@ -124,7 +125,15 @@
     { "id": "W11-7", "workstreamId": "W11", "name": "F7 舊格式相容層(fb 7 支、smb 6 支)", "owner": "佳緯", "start": "2026-11-02", "end": "2026-11-11", "description": "giga-file-service/docs/API.md §4;需相容路由公開 + 內網白名單、CORS(PRD §11 #15、#16)", "progress": 85, "status": "in_progress" },
     { "id": "W11-M", "workstreamId": "W11", "name": "◆ 測試區附件服務可用(上傳 / 下載 / NAS 備份 / BPM 附件 / 檔案管理頁)", "owner": "佳緯", "start": "2026-11-13", "end": "2026-11-13", "type": "milestone", "progress": 100, "status": "done", "description": "2026-10-08 達成:上傳 / 下載 / NAS 備份 / BPM 附件(191 / 190)/ 檔案管理頁皆於測試區驗收(giga-file-service docs/HANDOFF.md)" },
     { "id": "W11-8", "workstreamId": "W11", "name": "F4 舊系統對照與同步(NAS 備份拉取、166 每日增量同步、對照報表)", "owner": "佳緯", "start": "2026-11-16", "end": "2026-11-27", "description": "giga-file-service/docs/MIGRATION.md §2、§3;與需求方逐系統決策;含 GigaItApp「檔案管理 › 舊系統」Tab(原屬 F3);前置:WebAppDb 唯讀帳號、166 同步範圍(PRD §11 #12、#13)", "progress": 55, "status": "in_progress" },
-    { "id": "W11-9", "workstreamId": "W11", "name": "F5 舊檔搬遷與舊服務下線(視 F4 決策)", "owner": "佳緯", "start": "2026-12-07", "end": "2026-12-18", "status": "on_hold", "description": "giga-file-service/docs/MIGRATION.md §3 切換步驟;F4 決策後另訂計畫" }
+    { "id": "W11-9", "workstreamId": "W11", "name": "F5 舊檔搬遷與舊服務下線(視 F4 決策)", "owner": "佳緯", "start": "2026-12-07", "end": "2026-12-18", "status": "on_hold", "description": "giga-file-service/docs/MIGRATION.md §3 切換步驟;F4 決策後另訂計畫" },
+    { "id": "W12-1", "workstreamId": "W12", "name": "D0 文件與登記(AGENT、規劃、專案地圖、Gateway 登記)", "owner": "佳緯", "start": "2026-10-30", "end": "2026-10-30", "status": "in_progress", "description": "NetOps/docs/IMPL-PLAN.md D0;待三個 repo MR 合併" },
+    { "id": "W12-2", "workstreamId": "W12", "name": "B0 串流驗證(AI 經 Nginx、BFF)", "owner": "佳緯", "start": "2026-11-02", "end": "2026-11-03", "status": "todo", "description": "決定 AI 採串流或輪詢(ARCHITECTURE D7)" },
+    { "id": "W12-3", "workstreamId": "W12", "name": "B1 後端骨架(Fastify、內部 Token、OpenAPI、store、jobs)", "owner": "佳緯", "start": "2026-11-04", "end": "2026-11-06", "status": "todo", "description": "IMPL-PLAN B1" },
+    { "id": "W12-4", "workstreamId": "W12", "name": "B2 模組搬移(FTP、PA、AD、知識庫、明細查詢、AI)", "owner": "佳緯", "start": "2026-11-09", "end": "2026-11-20", "status": "todo", "description": "IMPL-PLAN B2;摘要結果與舊版一致" },
+    { "id": "W12-5", "workstreamId": "W12", "name": "F1 前端接入(web-kit、權限、外框)", "owner": "佳緯", "start": "2026-11-16", "end": "2026-11-24", "status": "todo", "description": "IMPL-PLAN F1" },
+    { "id": "W12-6", "workstreamId": "W12", "name": "D1 測試區部署(Nginx、CI、RBAC、監控、備份)", "owner": "佳緯", "start": "2026-11-25", "end": "2026-11-27", "status": "todo", "description": "IMPL-PLAN D1;含 Gateway、giga-observe 跨 repo 修改" },
+    { "id": "W12-7", "workstreamId": "W12", "name": "D2 驗收與正式切換(停用 IIS)", "owner": "佳緯", "start": "2026-11-30", "end": "2026-12-11", "status": "todo", "description": "IMPL-PLAN D2;日期待使用者調整" },
+    { "id": "W12-8", "workstreamId": "W12", "name": "服務直接寫入資料庫(後續階段)", "owner": "佳緯", "start": "2026-12-14", "end": "2026-12-31", "status": "on_hold", "description": "ARCHITECTURE §4.2;D2 後定案資料庫位置與保留期限" }
   ],
   "dependencies": [
     ["W1-1", "W1-2"], ["W1-2", "W1-3"], ["W1-3", "W1-4"], ["W1-4", "W1-6"], ["W1-5", "W1-6"], ["W1-6", "W1-M"],
