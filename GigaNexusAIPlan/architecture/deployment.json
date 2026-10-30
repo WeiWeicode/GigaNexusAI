@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-29",
+  "updated": "2026-10-30",
   "title": "程式碼部署流程(GitLab → 測試區 / 正式區)",
   "summary": "程式碼從工程師的工作分支推到公司 GitLab(主機 1),經 Merge Request 合併到 develop 後由主機 2 的 Runner 自動部署測試區;測試區驗收通過,再經 MR 合併到 main,由 Maintainer 在 GitLab 手動按下 deploy-prod,主機 3 的 Protected Runner 拉取同一個 commit SHA 的映像檔上架正式區。",
   "sources": [
@@ -537,6 +537,18 @@
         "text": "尚未設定 deploy-prod;正式區 gw_www 的 portal 是舊版"
       },
       "notes": "比照 GigaItApp 新增 build-prod / deploy-prod / rbac-prod"
+    },
+    {
+      "id": "NetOps",
+      "test": {
+        "state": "none",
+        "text": "尚未設定;規劃 develop 自動部署 netops-api 與 SPA"
+      },
+      "prod": {
+        "state": "none",
+        "text": "尚未設定;目前以 npm run publish 手動發佈到 IIS /NetOps"
+      },
+      "notes": "切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);develop 分支待建立"
     },
     {
       "id": "giga-file-service",
