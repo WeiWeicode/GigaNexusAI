@@ -3,6 +3,7 @@
 /*
 !/.gitignore
 !/.gitattributes
+!/.gitlab/
 !/AGENT.md
 !/GEMINI.md
 !/CLAUDE.md

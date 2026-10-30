@@ -47,6 +47,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 5. **AI 分工**:寫程式、寫測試、寫文件交給 Claude;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker(見 §7)。
 6. **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 6 個子代理,缺少時先詢問使用者是否建立(見 §8)。
 7. **Git 分支與推送**:開發在 `feature/*` 等工作分支;`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併,AI 不得推送 `develop` / `main`、不得 force push(`giga-api-gateway-bff/AGENT.md` §10.10)。同仁第一次設定與流程見 [`BackToNas/同仁開發指南.md`](BackToNas/同仁開發指南.md)。
+8. **多人協作**:開發新功能前先拉取最新程式碼再建分支;合併遇到衝突時 AI 先停下,列出影響的功能與邏輯,由開發者告知專案擁有者討論後再處理(見 §9)。
 
 ## 5. 公司主機連線
 
@@ -101,7 +102,7 @@ Host host3 10.10.130.122
 
 ## 6. 本 repo(工作區文件)收錄範圍
 
-GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.md`、`CLAUDE.md`)、`PROJECT-MAP.md`、`GigaNexusAIPlan/`、`BackToNas/`。其他專案各自是獨立 repo,不收進來(見 `.gitignore`)。
+GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.md`、`CLAUDE.md`)、`PROJECT-MAP.md`、`GigaNexusAIPlan/`、`BackToNas/`,以及 `.gitattributes`、`.gitlab/`(MR 範本)。其他專案各自是獨立 repo,不收進來(見 `.gitignore`)。
 
 工程師下載本 repo 只為看架構時,使用 `npm run arch`:只顯示架構圖,不顯示專案進度、不能編輯,也不需要資料庫。
 
@@ -165,3 +166,69 @@ GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.
 4. 建立後告訴使用者:**重新開啟 Claude Code 工作階段**後子代理才會載入。
 
 何時使用哪個子代理、委派時要交代的規則,見 `giga-api-gateway-bff/AGENT.md` §10.9。
+
+## 9. Git 協作規範(多人開發)
+
+適用本工作區所有 repo,開發者與 AI(Claude / Gemini)都要遵守。分支權限、推送與 AI 提交規則以 `giga-api-gateway-bff/AGENT.md` §10.10 為準;同仁第一次設定與操作步驟見 [`BackToNas/同仁開發指南.md`](BackToNas/同仁開發指南.md)。
+
+### 9.1 以 GitLab 為準
+
+- **GitLab(`ssh://git@10.10.130.123:2222/giganexus/...`)是唯一的正式來源**:分支、MR、CI/CD、Code Review 都在 GitLab。
+- GitHub(`github.com/WeiWeicode/...`)只是專案擁有者個人的備份,同仁不需要設定,也不要推送到 GitHub。
+- remote 名稱因人而異:同仁電腦上 GitLab 是 `origin`;專案擁有者電腦上 GitLab 是 `gitlab`、`origin` 是 GitHub。**AI 下 git 指令前先看 `git remote -v`,以指向 `10.10.130.123` 的 remote 為準**。下文以 `<gitlab>` 代表這個 remote。
+
+### 9.2 開發新功能前,先拉取最新程式碼
+
+1. 確認工作目錄乾淨(`git status`)。有未提交的變更時,先 commit 到自己的工作分支,或詢問開發者;**AI 不得自行 `stash`、`reset`、`checkout --` 丟棄變更**。
+2. 取得遠端最新狀態,並從**最新的基準分支**建立工作分支。有 `develop` 的 repo 以 `develop` 為基準,沒有的以 `main` 為基準:
+
+   ```bash
+   git fetch <gitlab>
+   git switch -c feature/<主題> <gitlab>/develop   # 沒有 develop 的 repo 改用 <gitlab>/main
+   ```
+
+3. 不要從別人的工作分支或過期的本機分支開新功能;接續既有分支時,先 `git pull --ff-only` 更新到遠端最新。
+4. 開發期間基準分支有新的合併時,開 MR 前先把基準分支合進自己的分支(`git fetch <gitlab> && git merge <gitlab>/develop`),在本機處理衝突並測試,不要把衝突留給 Maintainer。
+5. AI 接到開發任務時,第一步先 `git fetch`,並回報目前分支落後基準分支多少個 commit;落後時先更新再動手。
+
+### 9.3 合併遇到衝突:AI 先停下,列出影響,由開發者與專案擁有者討論
+
+`merge`、`rebase`、`pull`、`cherry-pick`,或 GitLab MR 顯示衝突時,一律依下列步驟:
+
+1. **AI 立即停止**:不自行解衝突、不使用 `-X ours` / `-X theirs` 或整檔採用某一方、不 `--abort`、不 force push,保持衝突狀態等候指示。
+2. **AI 列出衝突報告**給開發者,內容包含:
+   - 衝突檔案清單,以及每個衝突區塊雙方各改了什麼(來源分支 / commit / 作者)。
+   - **影響哪些功能或邏輯**:例如 API 介面、路由、權限代碼、錯誤代碼、資料庫 schema / migration、設定檔、CI/CD、共用套件(`@giganexus/*`),以及會受影響的畫面或其他 repo。
+   - 可行的解法(保留哪一方、如何整合)與各自的風險;不替開發者做決定。
+3. **開發者先告知專案擁有者**,討論並確認要保留哪些變更、影響哪些項目後,再指示 AI(或自行)解衝突。
+4. 解完衝突後:執行該 repo 的測試(動到架構資料時加跑 `npm run arch:check`),並在 MR 的「衝突處理」欄記錄**衝突檔案、決議內容與參與討論的人**。
+
+### 9.4 特定檔案的衝突處理方式
+
+以下檔案仍要先依 9.3 回報;討論後依此方式處理,不要逐行手動合併:
+
+| 檔案 | 處理方式 |
+| --- | --- |
+| `package-lock.json`、`Cargo.lock` 等 lock 檔 | 先解 `package.json` / `Cargo.toml` 的衝突,lock 檔採用基準分支的版本(`git checkout <gitlab>/develop -- package-lock.json`),再執行 `npm install` / `cargo build` 重新產生後提交 |
+| 資料庫 migration | 不合併兩支 migration 的內容;**改自己那支的編號或時間戳**排到最後,確認對基準分支的 schema 可正確執行 |
+| 架構資料 `GigaNexusAIPlan/architecture/*.json` | 保留雙方新增的節點與關係,合併後執行 `npm run arch:check` |
+| 權限代碼、路由表、`gateway-rbac.yaml` | 兩邊都新增時通常都要保留;代碼或路徑撞名時,一律交給專案擁有者決定 |
+| 修正紀錄、`HANDOFF.md` 等依時間累加的文件 | 雙方內容都保留,依日期排序 |
+
+### 9.5 分支命名、提交訊息與 MR 大小
+
+- 分支:`<類型>/<簡短英文描述>`,全小寫、以 `-` 連接。類型為 `feature/`(新功能)、`fix/`(修 bug)、`docs/`(只改文件)、`refactor/`(重構,不改變行為)。
+- 提交訊息:`<type>(<scope>): <中文說明>`,type 用 `feat`、`fix`、`docs`、`refactor`、`chore`、`test`;例:`feat(portal-api): 新增問卷調查 API`。一次提交只做一件事。
+- **分支要短命**:一個 MR 只做一個功能,盡量 1~2 天內合併;功能太大就拆成多個 MR 依序合併。分支放越久,衝突越大。
+
+### 9.6 換行字元(`.gitattributes`)
+
+- 每個 repo 根目錄都有 `.gitattributes`:`* text=auto eol=lf`,只有 Windows 腳本(`.cmd`、`.bat`、`.ps1`)以 CRLF 檢出。Git 裡一律存 LF,避免公司 Windows 電腦(`core.autocrlf=true`)造成整份檔案都變更的假衝突。
+- 新增 repo 時一併加上;不要在個人電腦改 `core.autocrlf` 來繞過。
+- 加入 `.gitattributes` 後第一次 `pull`,若 `git status` 出現內容沒變、只有換行不同的檔案,先用 `git diff --ignore-cr-at-eol --stat` 確認沒有實際差異,再對那些檔案執行 `git checkout -- <檔案>` 重新檢出。
+
+### 9.7 Merge Request 範本
+
+- 每個 repo 都有 `.gitlab/merge_request_templates/Default.md`,開 MR 時 GitLab 會自動帶入。
+- 必填:做了什麼與原因、測試方式與結果、影響範圍(資料庫、權限代碼、路由、`.env`、CI/CD、其他 repo)。
+- 有處理衝突時,填寫「衝突處理」欄(對應 9.3 第 4 點)。
