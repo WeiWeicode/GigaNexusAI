@@ -548,7 +548,7 @@
         "state": "none",
         "text": "尚未設定;目前以 npm run publish 手動發佈到 IIS /NetOps"
       },
-      "notes": "切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);develop 分支待建立"
+      "notes": "切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);develop 已建立,尚無 CI"
     },
     {
       "id": "giga-file-service",
