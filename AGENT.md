@@ -47,6 +47,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 5. **AI 分工**:寫程式、寫測試、寫文件交給 Claude;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker(見 §7)。
 6. **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 6 個子代理,缺少時先詢問使用者是否建立(見 §8)。
 7. **Git 分支與推送**:開發在 `feature/*` 等工作分支;`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併,AI 不得推送 `develop` / `main`、不得 force push(`giga-api-gateway-bff/AGENT.md` §10.10)。同仁第一次設定與流程見 [`BackToNas/同仁開發指南.md`](BackToNas/同仁開發指南.md)。
+8. **多人協作**:開發新功能前先拉取最新程式碼再建分支;合併遇到衝突時 AI 先停下,列出影響的功能與邏輯,由開發者告知專案擁有者討論後再處理(見 §9)。
 
 ## 5. 公司主機連線
 
@@ -165,3 +166,33 @@ GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.
 4. 建立後告訴使用者:**重新開啟 Claude Code 工作階段**後子代理才會載入。
 
 何時使用哪個子代理、委派時要交代的規則,見 `giga-api-gateway-bff/AGENT.md` §10.9。
+
+## 9. Git 協作規範(多人開發)
+
+適用本工作區所有 repo,開發者與 AI(Claude / Gemini)都要遵守。分支與推送權限仍以 §4 第 7 點與 `giga-api-gateway-bff/AGENT.md` §10.10 為準。
+
+### 9.1 開發新功能前,先拉取最新程式碼
+
+1. 確認工作目錄乾淨(`git status`)。有未提交的變更時,先 commit 到自己的工作分支或詢問開發者;**AI 不得自行 `stash`、`reset`、`checkout --` 丟棄變更**。
+2. 取得遠端最新狀態,並從**最新的基準分支**建立工作分支(有 `develop` 的 repo 以 `develop` 為基準,沒有的以 `main` 為基準):
+
+   ```bash
+   git fetch gitlab
+   git switch -c feature/<主題> gitlab/develop   # 沒有 develop 的 repo 改用 gitlab/main
+   ```
+
+3. 不要從別人的工作分支或過期的本機分支開新功能;接續既有分支時,先 `git pull --ff-only` 更新到遠端最新。
+4. 開發期間基準分支有新的合併時,在開 MR 前把基準分支合進自己的分支(`git fetch gitlab && git merge gitlab/develop`),在本機先處理衝突與測試,不要把衝突留給 Maintainer。
+5. AI 接到開發任務時,第一步先 `git fetch` 並回報目前分支落後基準分支多少個 commit;落後時先更新再動手。
+
+### 9.2 合併遇到衝突:AI 先停下,列出影響,由開發者與專案擁有者討論
+
+`merge`、`rebase`、`pull`、`cherry-pick`,或 GitLab MR 顯示衝突時,一律依下列步驟:
+
+1. **AI 立即停止**:不自行解衝突、不使用 `-X ours` / `-X theirs` 或整檔取某一方、不 `--abort`、不 force push,保持衝突狀態等候指示。
+2. **AI 列出衝突報告**給開發者,內容包含:
+   - 衝突檔案清單,以及每個衝突區塊雙方各改了什麼(來源分支 / commit / 作者)。
+   - **影響哪些功能或邏輯**:例如 API 介面、路由、權限代碼、錯誤代碼、資料庫 schema / migration、設定檔、CI/CD、共用套件(`@giganexus/*`),以及會受影響的畫面或其他 repo。
+   - 可行的解法選項(保留哪一方、如何整合)與各自的風險;不替開發者做決定。
+3. **開發者先告知專案擁有者**,討論並確認要保留哪些變更、影響哪些項目後,再指示 AI(或自行)解衝突。
+4. 解完衝突後:執行該 repo 的測試(與 `npm run arch:check`,若動到架構資料),並在 commit message 或 MR 說明記錄**衝突檔案、決議內容與參與討論的人**。
