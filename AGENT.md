@@ -98,7 +98,7 @@ Host host3 10.10.130.122
 - SSH 登不進主機 1 時的救援方式:Portainer(`https://10.10.130.123:9443`)的 `host-rescue` 容器(特權,主機根目錄掛在 `/host`)→ Console 執行 `nsenter --mount=/host/proc/1/ns/mnt --uts=/host/proc/1/ns/uts --ipc=/host/proc/1/ns/ipc --net=/host/proc/1/ns/net -- bash`,即取得主機 root shell(提示字元為 `root@user-virtual-machine`)。
 - 主機 2 SSH 登入後預設是 PowerShell;Docker 在 WSL 內,用 `wsl -u root -e docker ...` 執行(WSL 預設帳號沒有 docker 權限)。
 - 主機 3(`10.10.130.122`)登入帳號為 `user`(屬於本機 Administrators 群組,所以公鑰放在 `C:\ProgramData\ssh\administrators_authorized_keys`);用 `Administrator` 登入會被中斷連線(`Connection reset`)。SSH 登入後預設是 PowerShell;Docker 在 WSL Ubuntu 內,和主機 2 一樣用 `wsl -u root -e docker ...` 執行。
-- 主機 3 的 WSL **查不到外部 DNS**(`apt-get`、Docker Hub 都不通);映像從 GitLab Registry(`10.10.130.123:5050`)拉,系統套件要從主機 2 的 apt 快取複製 `.deb` 安裝。
+- 主機 3 的 WSL **已可連外**:2026-11-03 實測可解析外部 DNS,`archive.ubuntu.com` 回 200,Docker Hub `docker pull` 成功,RDAP(`rdap.arin.net`)回 200。2026-10-29 上架時 DNS 不通(`apt-get`、Docker Hub 都失敗),恢復原因未查明。部署仍照原做法:映像從 GitLab Registry(`10.10.130.123:5050`)拉,和測試區用同一份映像。連外再失敗時,改用舊做法:系統套件從主機 2 的 apt 快取複製 `.deb` 安裝,官方映像在主機 2 `docker save`、到主機 3 `docker load`。容器內(Docker 預設網路)也可解析外部 DNS;其他 RDAP 登記處與 DNS 反查未驗證。
 - 主機 3 的 **舊系統不能受影響**:改防火牆或 Docker 設定前,先確認舊系統的 port 仍可連線。防火牆規則 `Docker-WSL2-AllServices-TCP`(舊系統 port,來源不限)、`Docker-Portainer`(8000、9000、9444,只開放 `10.10.112.0/24`)、`GigaNexus-Agent-9443`;2026-10-29 收緊前的完整備份在 `C:\Users\user\fw-backup-20261029.wfw`(`netsh advfirewall import` 還原)。
 - 主機 3 的 NAS 掛載(`/etc/fstab`):`/mnt/nas-docker`(`docker-backup`,file-api 備份寫 `giga-files/prod/`)、`/srv/giganexus/nas-rustit`(RustIT 唯讀,`rustit-upload`,兩區共用帳號見 RustIt `docs/S1-SIGNING-DESIGN.md` §1)。
 
