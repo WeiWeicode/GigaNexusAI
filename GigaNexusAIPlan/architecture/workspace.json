@@ -92,9 +92,9 @@
       "status": "active",
       "repo": "NetOps",
       "detail": null,
-      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。目前部署於 IIS /NetOps(Express + 自建登入);規劃(W12)接入 Gateway:SPA /netops/、netops-api :51292、登入改單一入口。第一版資料存檔案,未來改由服務直接寫入資料庫。AI 問答與分析不改寫,切換後留在舊版,未來由 AI 中控台提供。",
+      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區待 D2 切換。第一版資料存檔案,未來改由服務直接寫入資料庫。AI 問答與分析不改寫,切換後留在舊版,未來由 AI 中控台提供。",
       "tech": ["Vue 3", "Element Plus + Express 5(現行)", "G* 元件 + Fastify 5 + TypeScript(目標)"],
-      "endpoints": ["現行 IIS /NetOps", "目標 /netops/、netops-api :51292(/api/netops/*,經 BFF)"],
+      "endpoints": ["舊版 IIS /NetOps", "測試區 /netops/、netops-api :51292(/api/netops/*,經 BFF)"],
       "docs": ["NetOps/AGENT.md", "NetOps/docs/ARCHITECTURE.md", "NetOps/docs/IMPL-PLAN.md", "NetOps/docs/PROJECT-MAP.md", "NetOps/README.md"]
     },
     {
@@ -407,10 +407,10 @@
     }
   ],
   "relations": [
-    { "from": "giga-api-gateway-bff", "to": "NetOps", "type": "proxy", "label": "Nginx 託管 SPA /netops/;/api/netops/* → netops-api :51292", "status": "planned" },
-    { "from": "NetOps", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit、@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "planned" },
-    { "from": "GigaItApp", "to": "NetOps", "type": "nav", "label": "權限設定(netops.*)、應用切換", "status": "planned" },
-    { "from": "NetOps", "to": "giga-observe", "type": "api", "label": "netops-api 紀錄與心跳(backend-sdk monitor)", "status": "planned" },
+    { "from": "giga-api-gateway-bff", "to": "NetOps", "type": "proxy", "label": "Nginx 託管 SPA /netops/;/api/netops/* → netops-api :51292", "status": "active" },
+    { "from": "NetOps", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit、@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "active" },
+    { "from": "GigaItApp", "to": "NetOps", "type": "nav", "label": "權限設定(netops.*)、應用切換", "status": "active" },
+    { "from": "NetOps", "to": "giga-observe", "type": "api", "label": "netops-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "NetOps", "to": "netops-sources", "type": "readonly", "label": "FTP log 串流讀取;LLM 與 Qdrant 只有舊版 IIS 使用", "status": "active" },
     { "from": "NetOps", "to": "ai-console", "type": "api", "label": "未來接入 AI 問答與分析(取代舊版 IIS)", "status": "planned" },
     { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
