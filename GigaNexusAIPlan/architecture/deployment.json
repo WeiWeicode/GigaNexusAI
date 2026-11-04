@@ -541,14 +541,14 @@
     {
       "id": "NetOps",
       "test": {
-        "state": "none",
-        "text": "尚未設定;規劃 develop 自動部署 netops-api 與 SPA"
+        "state": "auto",
+        "text": "develop 自動:deploy-api-test(主機 2 建置 netops-api)、deploy-web-test(/netops/ 前端)→ rbac-test;知識庫每天備份到 NAS"
       },
       "prod": {
         "state": "none",
         "text": "尚未設定;目前以 npm run publish 手動發佈到 IIS /NetOps"
       },
-      "notes": "切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);develop 已建立,尚無 CI"
+      "notes": "2026-11-04 測試區上線(D1)。切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);新應用的 gw.app 與超管權限由 Gateway deploy/gateway-apps.yaml、super-admin-grants.yaml 手動套用"
     },
     {
       "id": "giga-file-service",
