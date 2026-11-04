@@ -31,12 +31,12 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `RustIt/` | Windows 端點資產蒐集與控管:`RustAgent/`(Rust:Agent、托盤)、`ItAgentBack/`(Node.js:Endpoint Server,測試區 2026-10-07 起運作) | `AGENT.md`、`docs/PROJECT-MAP.md`、`docs/INTEGRATION-PLAN.md` |
 | `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
 | `giga-file-service/` | 附件服務(W11,2026-10-08 測試區上線:F1 檔案 API、F2 NAS 備份、F6 BPM 附件 191 / 190;F4 / F7 規劃):`file-api` :51272,UUID 上傳 / 下載、WSL + NAS 備份、BPM 附件唯讀、舊系統對照與舊格式相容層;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `AGENT.md`、`docs/HANDOFF.md`、`docs/PRD.md`、`docs/PROJECT-MAP.md` |
-| `NetOps/` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、網通知識庫。目前部署於 IIS,規劃接入 Gateway(`/netops/`、`netops-api` :51292,W12);AI 功能不改寫,未來由 AI 中控台提供 | `AGENT.md`、`docs/ARCHITECTURE.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md` |
+| `NetOps/` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、網通知識庫、AI 分析與問答。舊版部署於 IIS;接入 Gateway(`/netops/`、`netops-api` :51292,W12)已上測試區。規劃中:AI 搬進新版(直連 AI 主機)、PA 即時監控(pan-os-python + Redis);不寫資料庫 | `AGENT.md`、`docs/ARCHITECTURE.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md` |
 | `GigaNexusAIPlan/` | 平台建置甘特圖(NexusPlan)與**架構圖網站**、架構資料 | `README.md`、`architecture/README.md` |
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 
 - 某個資料夾不在你的工作區(沒有 clone)時,明確說明「未讀取」,不要猜內容。
-- AI 中控台(獨立 SDK 與應用)尚未開 repo,目前只有 [`GigaNexusAIPlan/docs/AI-CONSOLE-PRD.md`](GigaNexusAIPlan/docs/AI-CONSOLE-PRD.md) 草案。
+- **AI 中控台計畫已取消**(2026-11-04):各系統沿用原本專案的 AI 功能,直接呼叫 AI 主機(§5);[`AI-CONSOLE-PRD.md`](GigaNexusAIPlan/docs/AI-CONSOLE-PRD.md) 只留作紀錄。
 - 規劃中的元件(Rust Watchdog、托盤;各業務系統)記錄在 `workspace.json`,`status` 為 `planned`;RustIt `ItAgentBack`(endpoint-server)於 2026-10-07 改為 `active`。
 - **時程以 NexusPlan 甘特圖為準**(`GigaNexusAIPlan`,`npm run serve` → http://localhost:5190);各專案文件不另列日期,只記錄狀態。
 
@@ -58,6 +58,16 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | 主機 1 | 10.10.130.123 | Ubuntu 22.04 | GitLab(`:80`)、Registry(`:5050`)、GitLab git SSH(`:2222`)、Portainer(`:9443`) | `user` |
 | 主機 2 | 10.10.130.124 | Windows 10(WSL2 跑 Docker、Runner) | 測試區 Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆暫時只開放 10.10.112.13 與 10.10.130.124(本機 Hyper-V 測試 VM 經 Default Switch NAT 後的來源))、GitLab Runner、RustIt endpoint-server | `user` |
 | 主機 3 | 10.10.130.122 | Windows 10(`DESKTOP-26TER17`;WSL2 Ubuntu 跑 Docker) | 正式區主機(`giganexus.gigasolar.com.tw`):Gateway(Traefik 80 / 443 / 9443;`:9443` 防火牆只開放 `10.10.0.0/16`)、giga-observe-prod、舊系統容器(BPM、MESWeb、GeneralBackend 等,port 5121–5210、RustDesk 21115–21119) | `user` |
+
+**AI 主機**(2026-11-04;各系統直接呼叫,不經 AI 中控台):
+
+| 主機 | 用途 |
+| --- | --- |
+| 10.10.130.46 | 主要。OpenAI 相容 API:`:8080` 主要模型(`LLM_URL=http://10.10.130.46:8080/v1`、`LLM_MODEL=Qwen3.6-35B-A3B-FP8`)、`:8081` embedding;NetOps 舊版的 Qdrant 也在這台(`:6333`) |
+| 10.10.130.45 | 與 .46 配置相同(`:8080` 主要模型、`:8081` embedding),作為備用;換主機只改設定 |
+
+- 開發機連 AI 主機會被 PA 擋,開發時走 SSH tunnel;容器上線前先確認主機 2、3 可連。
+- 只送統計或彙整後的資料,不送原始 log 檔與機密。
 
 AI 以 SSH 金鑰 `~/.ssh/giganexus_ops`(公鑰已放入兩台 `user` 帳號)登入下指令。開發機 `~/.ssh/config` 建議設定:
 
