@@ -12,6 +12,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 
 | 想知道 | 看哪裡 |
 | --- | --- |
+| 某段程式在哪裡、誰呼叫它、改了會影響什麼 | **先用 CodeGraph**(各 repo 根目錄有 `.codegraph/` 時;Claude Code 用 MCP `codegraph_explore`,其他人執行 `codegraph explore "<問題>"`);找不到再看該專案的 `docs/PROJECT-MAP.md`(`giga-api-gateway-bff/AGENT.md` §10.7) |
 | 有哪些專案、彼此怎麼連 | [`GigaNexusAIPlan/architecture/workspace.json`](GigaNexusAIPlan/architecture/workspace.json) |
 | 某個專案內部的模組、分層、請求流向與資料庫 | [`GigaNexusAIPlan/architecture/projects/`](GigaNexusAIPlan/architecture/projects/)`<專案>.json`(目前:`giga-api-gateway-bff`) |
 | 程式碼怎麼部署到測試區 / 正式區(GitLab CI/CD、合併與手動上架規則、各專案現況) | [`GigaNexusAIPlan/architecture/deployment.json`](GigaNexusAIPlan/architecture/deployment.json);圖在架構圖網站左側「部署流程(CI/CD)」 |
@@ -46,10 +47,11 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 2. **只改任務所屬的 repo**;要動其他 repo 先說明並取得同意(`giga-api-gateway-bff/AGENT.md` §10.5)。
 3. **找別的系統的 API 先查 BFF 路由表**,不直接連對方主機或資料庫(§10.4)。
 4. **架構有變就更新架構資料**:新增專案 / 關係、模組搬移、資料表變更後,同步修改 `GigaNexusAIPlan/architecture/*.json`,並執行 `npm run arch:check`(在 `GigaNexusAIPlan/`)。
-5. **AI 分工**:寫程式、寫測試、寫文件交給 Claude;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker(見 §7)。
-6. **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 6 個子代理,缺少時先詢問使用者是否建立(見 §8)。
-7. **Git 分支與推送**:開發在 `feature/*` 等工作分支;`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併,AI 不得推送 `develop` / `main`、不得 force push(`giga-api-gateway-bff/AGENT.md` §10.10)。同仁第一次設定與流程見 [`BackToNas/同仁開發指南.md`](BackToNas/同仁開發指南.md)。
-8. **多人協作**:開發新功能前先拉取最新程式碼再建分支;合併遇到衝突時 AI 先停下,列出影響的功能與邏輯,由開發者告知專案擁有者討論後再處理(見 §9)。
+5. **AI 分工**:Claude 負責前後端,著重邏輯、框架、架構規劃與寫計畫;Gemini 負責前端頁面與元件、寫需求企劃、執行測試與寫報告,不能動前端邏輯層、後端、CI/CD、Docker(見 §7)。
+6. **找程式碼先用 CodeGraph**:找不到再看各專案的 `docs/PROJECT-MAP.md`(見 §2)。
+7. **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 6 個子代理,缺少時先詢問使用者是否建立(見 §8)。
+8. **Git 分支與推送**:開發在 `feature/*` 等工作分支;`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併,AI 不得推送 `develop` / `main`、不得 force push(`giga-api-gateway-bff/AGENT.md` §10.10)。同仁第一次設定與流程見 [`BackToNas/同仁開發指南.md`](BackToNas/同仁開發指南.md)。
+9. **多人協作**:開發新功能前先拉取最新程式碼再建分支;合併遇到衝突時 AI 先停下,列出影響的功能與邏輯,由開發者告知專案擁有者討論後再處理(見 §9)。
 
 ## 5. 公司主機連線
 
@@ -122,16 +124,28 @@ GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.
 
 適用本工作區所有專案(各專案 `AGENT.md` 同步收錄;以 `giga-api-gateway-bff/AGENT.md` §10.8 為準)。
 
-寫程式、寫測試、寫文件由 **Claude** 負責;**Gemini** 只負責執行測試、撰寫測試報告,以及非邏輯性的修改。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
+**Claude** 負責前後端,著重在邏輯、框架、架構規劃與寫計畫:後端全部、前端的邏輯層、測試、技術文件。**Gemini** 負責前端的頁面與元件、寫需求企劃,以及執行測試、撰寫測試報告。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
 
 | 工作 | Claude | Gemini |
 | --- | --- | --- |
-| 寫程式(新功能、業務邏輯、API、權限、資料存取、狀態管理、修 bug、重構) | ✅ | ❌ |
-| 寫測試(單元 / 整合 / E2E 測試碼、測試用 fixture 的邏輯) | ✅ | ❌ |
-| 寫文件(`AGENT.md`、`README.md`、`docs/`、`PROJECT-MAP.md`、架構 JSON、修正紀錄) | ✅ | ❌(測試報告除外) |
+| 後端程式(API、業務邏輯、權限、資料存取、排程、修 bug、重構) | ✅ | ❌ |
+| 前端邏輯層:`composables/`(狀態與邏輯)、`api/`(HTTP)、store、路由與路由守衛、權限判斷、`@giganexus/*` 共用套件 | ✅ | ❌ |
+| 前端頁面與元件:`pages/`、`components/` / `ui/` 的畫面組合、版面、樣式、互動、文案、mock / 假資料 | ✅ | ✅ |
+| 架構與框架:新模組、目錄慣例、選用套件、共用元件與 composable 的介面設計 | ✅ | ❌ |
+| 寫計畫與技術文件:`ARCHITECTURE.md`、`IMPL-PLAN.md`、`HANDOFF.md`、`PROJECT-MAP.md`、`AGENT.md`、`README.md`、架構 JSON、修正紀錄 | ✅ | ❌ |
+| 寫需求企劃:`docs/PRD.md`、功能企劃、`docs/Gherkin/*.feature` 驗收場景 | ✅ | ✅ |
+| 後端測試、前端邏輯層測試、整合 / E2E 測試、測試用 fixture 的邏輯 | ✅ | ❌ |
+| 前端元件測試(Gemini 負責的頁面 / 元件) | ✅ | ✅ |
 | 執行測試(既有的 `npm test`、`test:int`、E2E、`cargo test` 等)並撰寫測試報告 | ✅ | ✅ |
-| 非邏輯性修改:前端 mock / 假資料、版面與樣式(CSS、間距、顏色、排版)、畫面文案錯字 | ✅ | ✅ |
 | CI/CD 與容器、部署設定 | ✅ | ❌ **禁止** |
+
+**Gemini 寫前端頁面與元件**:
+
+- 資料與狀態一律用既有的 `composables/`、`api/`;頁面不直接 `fetch`、不自己寫權限判斷(Gateway `AGENT.md` §10.7.2)。需要新的 API 呼叫、狀態、權限代碼或路由時,寫在 MR 說明交給 Claude。
+- 權限代碼、路由、錯誤代碼以 Gateway `docs/` 為準,不自創。
+- 新增頁面或元件時,可在 `docs/PROJECT-MAP.md` 補上該頁面 / 元件那一行;其他段落由 Claude 維護。
+
+**Gemini 寫需求企劃**:只描述需求、畫面與驗收行為。API 介面、權限代碼、錯誤代碼、資料表屬技術設計,企劃中需要時列為「待決事項」交給 Claude,不直接定案。
 
 **Gemini 禁止修改**(即使只改一行):
 
@@ -139,7 +153,8 @@ GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.
 - 容器與部署:`Dockerfile*`、`docker-compose*`、`.dockerignore`、`deploy/`、`nginx/`、部署腳本、`.env*`、`Web.config` / 發佈設定。
 - 相依與建置設定:`package.json`(含 scripts)、lock 檔、`Cargo.toml`、`tsconfig*.json`、`vite.config.*`。
 - 資料庫:schema、migration、seed。
-- 測試程式碼:測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
+- 後端程式與前端邏輯層(見上表)。
+- 測試:只能新增 / 修改自己負責頁面的元件測試。測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
 
 **測試報告**(Gemini 執行測試後必寫):
 
@@ -147,7 +162,7 @@ GitLab `giganexus/giganexusai` 只收:本檔 `AGENT.md`(與指向它的 `GEMINI.
 - 內容:1. 環境(分支 / commit、部署區、執行的指令)2. 結果(通過 / 失敗 / 略過數量)3. 失敗項目(測試名稱、錯誤訊息摘錄)4. **可能問題**:推測原因、相關檔案與行號、重現步驟、影響範圍 5. 建議交給 Claude 處理的項目。
 - 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
 
-**判斷不了是否屬於「非邏輯性」時,一律視為邏輯修改**:不動程式,寫進報告交給 Claude。
+**判斷不了屬於頁面 / 元件還是邏輯時,一律視為邏輯**:不動程式,寫進 MR 說明或報告交給 Claude。
 
 ## 8. Claude 子代理
 
