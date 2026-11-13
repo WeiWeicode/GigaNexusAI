@@ -92,10 +92,10 @@
       "status": "active",
       "repo": "NetOps",
       "detail": null,
-      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區待 D2 切換。資料存檔案,不寫入資料庫(2026-11-04 決定)。規劃(2026-11-04):AI 問答與分析搬進 netops-api,直連 AI 主機(A1,取消 AI 中控台);PA 即時監控新增 Python 服務 netops-pa(pan-os-python)與 netops-redis(log 保留 2 天,R1)。",
-      "tech": ["Vue 3", "Element Plus + Express 5(現行)", "G* 元件 + Fastify 5 + TypeScript(目標)"],
-      "endpoints": ["舊版 IIS /NetOps", "測試區 /netops/、netops-api :51292(/api/netops/*,經 BFF)", "規劃:netops-pa log 接收 :51293(HTTP)、:51294(Syslog),不經 Gateway"],
-      "docs": ["NetOps/AGENT.md", "NetOps/docs/ARCHITECTURE.md", "NetOps/docs/IMPL-PLAN.md", "NetOps/docs/PA-LIVE-PLAN.md", "NetOps/docs/PROJECT-MAP.md", "NetOps/README.md"]
+      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區待 D2 切換。摘要與知識庫存檔案;AI 問答與分析已搬進 netops-api(A1,測試區 2026-11-09);PA 即時監控 netops-pa(pan-os-python)+ netops-redis(R1,測試區 2026-11-10)。PA log 寫 NetOps 自有 netops-clickhouse(C1–C5,測試區 2026-11-13):netops-ingest 從 Redis Stream 批次寫入,查詢只用 ClickHouse(FTP 只做每日對帳與補漏),每天 02:30 Parquet 冷歸檔到 NAS,PA 精準查詢走 XML API log;活動熱力圖與分析儀表板(V-a / V-b)。正式區待 D2、C6。",
+      "tech": ["Vue 3", "Element Plus + Express 5(舊版 IIS)", "G* 元件 + ECharts + Fastify 5 + TypeScript", "Python pan-os-python", "Redis", "ClickHouse", "Parquet"],
+      "endpoints": ["舊版 IIS /NetOps", "測試區 /netops/、netops-api :51292(/api/netops/*,經 BFF)", "netops-pa log 接收 :51293(HTTP)、:51294(Syslog),不經 Gateway", "netops-clickhouse、netops-ingest 只在 NetOps 內部網路", "冷歸檔 NAS /mnt/nas-docker/giga-netops/{env}/pa-archive"],
+      "docs": ["NetOps/AGENT.md", "NetOps/docs/ARCHITECTURE.md", "NetOps/docs/IMPL-PLAN.md", "NetOps/docs/PA-LIVE-PLAN.md", "NetOps/docs/PA-LOG-CLICKHOUSE-GUIDE.md", "NetOps/docs/VIZ-RULES-DESIGN.md", "NetOps/docs/HANDOFF.md", "NetOps/docs/PROJECT-MAP.md", "NetOps/README.md"]
     },
     {
       "id": "netops-sources",
@@ -117,12 +117,12 @@
       "label": "Palo Alto PA-560",
       "category": "external",
       "kind": "external",
-      "status": "planned",
+      "status": "active",
       "repo": null,
       "detail": null,
-      "summary": "NetOps 即時監控(R1)的資料來源:netops-pa 以 pan-os-python 每 10–15 秒唯讀輪詢設備狀態,PA-560 以 HTTP Log Forwarding 推送 log。第一版只讀,封鎖 IP(DAG 標籤)排 R2。管理 IP 與 PAN-OS 版本待網通提供。",
-      "tech": ["PAN-OS XML API", "HTTP Log Forwarding"],
-      "endpoints": [],
+      "summary": "PA-560(10.10.115.35,PAN-OS 12.1.7-h3):netops-pa 以 pan-os-python 唯讀輪詢設備狀態;TRAFFIC 以 Syslog、威脅類以 HTTP Log Forwarding 推送到主機 2(R0、R1,2026-11-10);XML API log 供 PA 精準查詢(C5,管理平面 CPU > 50% 不送)。第一版只讀,封鎖 IP(DAG 標籤)排 R2。",
+      "tech": ["PAN-OS XML API", "Syslog", "HTTP Log Forwarding"],
+      "endpoints": ["10.10.115.35(管理介面)", "→ 主機 2 :51293(HTTP)、:51294(Syslog)"],
       "docs": ["NetOps/docs/PA-LIVE-PLAN.md"]
     },
     {
@@ -412,7 +412,7 @@
     { "from": "GigaItApp", "to": "NetOps", "type": "nav", "label": "權限設定(netops.*)、應用切換", "status": "active" },
     { "from": "NetOps", "to": "giga-observe", "type": "api", "label": "netops-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "NetOps", "to": "netops-sources", "type": "readonly", "label": "FTP log 串流讀取;AI 主機與 Qdrant 目前只有舊版 IIS 使用,A1 後由 netops-api 直連", "status": "active" },
-    { "from": "NetOps", "to": "pa-560", "type": "readonly", "label": "netops-pa:SDK 唯讀輪詢、接收 HTTP Log Forwarding,寫入 netops-redis(R1)", "status": "planned" },
+    { "from": "NetOps", "to": "pa-560", "type": "readonly", "label": "netops-pa:SDK 唯讀輪詢、接收 Syslog / HTTP Log Forwarding 寫入 netops-redis(R1);netops-api:XML API log 精準查詢(C5)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "endpoint-server", "to": "giga-observe", "type": "api", "label": "endpoint-api / endpoint-agent 紀錄與心跳(含 WebSocket 連線、在線數)", "status": "active" },
