@@ -92,7 +92,7 @@
       "status": "active",
       "repo": "NetOps",
       "detail": null,
-      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區待 D2 切換。摘要與知識庫存檔案;AI 問答與分析已搬進 netops-api(A1,測試區 2026-11-09);PA 即時監控 netops-pa(pan-os-python)+ netops-redis(R1,測試區 2026-11-10)。PA log 寫 NetOps 自有 netops-clickhouse(C1–C5,測試區 2026-11-13):netops-ingest 從 Redis Stream 批次寫入,查詢只用 ClickHouse(FTP 只做每日對帳與補漏),每天 02:30 Parquet 冷歸檔到 NAS,PA 精準查詢走 XML API log;活動熱力圖與分析儀表板(V-a / V-b)。正式區待 D2、C6。",
+      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區待 D2 切換。摘要與知識庫存檔案;AI 問答與分析已搬進 netops-api(A1,測試區 2026-11-09);PA 即時監控 netops-pa(pan-os-python)+ netops-redis(R1,測試區 2026-11-10)。PA log 寫 NetOps 自有 netops-clickhouse(C1–C5,測試區 2026-11-13):netops-ingest 從 Redis Stream 批次寫入,查詢只用 ClickHouse(FTP 只做每日對帳與補漏),每天 02:30 Parquet 冷歸檔到 NAS,PA 精準查詢走 XML API log;活動熱力圖與分析儀表板(V-a / V-b)。AC1–AC7(MR !93–!99,2026-11-16 合併後上測試區):FTP 對帳改每天 08:10 並自動補漏、AI 改查 ClickHouse(NETOPS_AI_SOURCE;正式區 C6 前仍用 FTP)、IP 對照表(netops.ip-name.*,AI 與 PA 畫面顯示姓名 / 部門)、各 PA 畫面 AI 解讀 / 摘要(POST /ai/explanations)與每日 AI 摘要。正式區待 D2、C6。",
       "tech": ["Vue 3", "Element Plus + Express 5(舊版 IIS)", "G* 元件 + ECharts + Fastify 5 + TypeScript", "Python pan-os-python", "Redis", "ClickHouse", "Parquet"],
       "endpoints": ["舊版 IIS /NetOps", "測試區 /netops/、netops-api :51292(/api/netops/*,經 BFF)", "netops-pa log 接收 :51293(HTTP)、:51294(Syslog),不經 Gateway", "netops-clickhouse、netops-ingest 只在 NetOps 內部網路", "冷歸檔 NAS /mnt/nas-docker/giga-netops/{env}/pa-archive"],
       "docs": ["NetOps/AGENT.md", "NetOps/docs/ARCHITECTURE.md", "NetOps/docs/IMPL-PLAN.md", "NetOps/docs/PA-LIVE-PLAN.md", "NetOps/docs/PA-LOG-CLICKHOUSE-GUIDE.md", "NetOps/docs/VIZ-RULES-DESIGN.md", "NetOps/docs/HANDOFF.md", "NetOps/docs/PROJECT-MAP.md", "NetOps/README.md"]
@@ -411,7 +411,7 @@
     { "from": "NetOps", "to": "giga-api-gateway-bff", "type": "package", "label": "@giganexus/web-kit、@giganexus/backend-sdk 驗 Token / 自動註冊", "status": "active" },
     { "from": "GigaItApp", "to": "NetOps", "type": "nav", "label": "權限設定(netops.*)、應用切換", "status": "active" },
     { "from": "NetOps", "to": "giga-observe", "type": "api", "label": "netops-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
-    { "from": "NetOps", "to": "netops-sources", "type": "readonly", "label": "FTP log 串流讀取;AI 主機與 Qdrant 目前只有舊版 IIS 使用,A1 後由 netops-api 直連", "status": "active" },
+    { "from": "NetOps", "to": "netops-sources", "type": "readonly", "label": "FTP log 每日對帳與補漏(08:10);netops-api 直連 AI 主機(A1;AC 起送 ClickHouse 統計與 IP 對照姓名,不送原始 log)", "status": "active" },
     { "from": "NetOps", "to": "pa-560", "type": "readonly", "label": "netops-pa:SDK 唯讀輪詢、接收 Syslog / HTTP Log Forwarding 寫入 netops-redis(R1);netops-api:XML API log 精準查詢(C5)", "status": "active" },
     { "from": "giga-api-gateway-bff", "to": "giga-observe", "type": "api", "label": "BFF 請求 / 上游紀錄、前端事件轉送(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-observe", "type": "api", "label": "itapp-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
