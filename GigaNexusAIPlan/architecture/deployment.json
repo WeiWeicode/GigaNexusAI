@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-30",
+  "updated": "2026-11-16",
   "title": "程式碼部署流程(GitLab → 測試區 / 正式區)",
   "summary": "程式碼從工程師的工作分支推到公司 GitLab(主機 1),經 Merge Request 合併到 develop 後由主機 2 的 Runner 自動部署測試區;測試區驗收通過,再經 MR 合併到 main,由 Maintainer 在 GitLab 手動按下 deploy-prod,主機 3 的 Protected Runner 拉取同一個 commit SHA 的映像檔上架正式區。",
   "sources": [
@@ -548,7 +548,7 @@
         "state": "none",
         "text": "尚未設定;目前以 npm run publish 手動發佈到 IIS /NetOps"
       },
-      "notes": "2026-11-04 測試區上線(D1);A1、R1、C1–C5、V-a / V-b 於 2026-11-13 前上測試區;AC1–AC7(!93–!99)堆疊分支,依序合併後上測試區(check:ingest-int 避開台灣 00:00–03:00,熱力圖 / AI 整合測試會因測試區 TTL 3 天失敗)。netops-pa 重建後 PA-560 Syslog 不會自動重連,要請網通再 Commit netops-syslog。切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);新應用的 gw.app 與超管權限由 Gateway deploy/gateway-apps.yaml、super-admin-grants.yaml 手動套用"
+      "notes": "2026-11-04 測試區上線(D1);A1、R1、C1–C5、V-a / V-b 於 2026-11-13 前上測試區;AC1–AC7(!93–!99)2026-11-16 合併上測試區,驗收與修正 !100–!103 完成,正式區 2026-11-16 起上架(D2;AI 沿用 FTP,C6 ClickHouse 正式區另列)(check:ingest-int 避開台灣 00:00–03:00,熱力圖 / AI 整合測試會因測試區 TTL 3 天失敗)。netops-pa 重建後 PA-560 Syslog 不會自動重連,要請網通再 Commit netops-syslog。切換前 main 維持舊 IIS 版本(NetOps ARCHITECTURE D12);新應用的 gw.app 與超管權限由 Gateway deploy/gateway-apps.yaml、super-admin-grants.yaml 手動套用"
     },
     {
       "id": "giga-file-service",
