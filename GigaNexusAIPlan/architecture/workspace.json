@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-16",
+  "updated": "2026-11-17",
   "title": "GigaNexus 全專案架構",
   "summary": "地端單一入口平台:所有瀏覽器與系統對系統流量經 giga-api-gateway-bff(Nginx + BFF)進入,由 BFF 統一登入、RBAC 與動態路由;端點電腦經 :9443 mTLS 通道連 Endpoint Server。",
   "sources": [
@@ -92,7 +92,7 @@
       "status": "active",
       "repo": "NetOps",
       "detail": null,
-      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區 2026-11-16 第一段上線(netops-api、/netops/、netops-redis、netops-kb-backup;PA log 管線第二段待 E5)。摘要與知識庫存檔案;AI 問答與分析已搬進 netops-api(A1,測試區 2026-11-09);PA 即時監控 netops-pa(pan-os-python)+ netops-redis(R1,測試區 2026-11-10)。PA log 寫 NetOps 自有 netops-clickhouse(C1–C5,測試區 2026-11-13):netops-ingest 從 Redis Stream 批次寫入,查詢只用 ClickHouse(FTP 只做每日對帳與補漏),每天 02:30 Parquet 冷歸檔到 NAS,PA 精準查詢走 XML API log;活動熱力圖與分析儀表板(V-a / V-b)。AC1–AC7(MR !93–!99,2026-11-16 合併上測試區,驗收與修正 !100–!103 完成):FTP 對帳改每天 08:10 並自動補漏、AI 改查 ClickHouse(NETOPS_AI_SOURCE;正式區 C6 前仍用 FTP)、IP 對照表(netops.ip-name.*,AI 與 PA 畫面顯示姓名 / 部門)、各 PA 畫面 AI 解讀 / 摘要(POST /ai/explanations)與每日 AI 摘要。測試區 2026-11-16 全部完成;正式區 2026-11-16 起上架(D2;AI 沿用 FTP 舊路徑,C6 ClickHouse 正式區另列)。",
+      "summary": "PA-560 防火牆 log(流量總覽、安全事件、明細查詢)、AD 事件、網通知識庫。舊版仍部署於 IIS /NetOps(Express + 自建登入);W12 接入 Gateway,2026-11-04 測試區上線:SPA /netops/、netops-api :51292、登入改單一入口,正式區 2026-11-16 第一段上線(netops-api、/netops/、netops-redis、netops-kb-backup;PA log 管線第二段待 E5)。摘要與知識庫存檔案;AI 問答與分析已搬進 netops-api(A1,測試區 2026-11-09);PA 即時監控 netops-pa(pan-os-python)+ netops-redis(R1,測試區 2026-11-10)。PA log 寫 NetOps 自有 netops-clickhouse(C1–C5,測試區 2026-11-13):netops-ingest 從 Redis Stream 批次寫入,查詢只用 ClickHouse(FTP 只做每日對帳與補漏),每天 02:30 Parquet 冷歸檔到 NAS,PA 精準查詢走 XML API log;活動熱力圖與分析儀表板(V-a / V-b)。AC1–AC7(MR !93–!99,2026-11-16 合併上測試區,驗收與修正 !100–!103 完成):FTP 對帳改每天 08:10 並自動補漏、AI 改查 ClickHouse(NETOPS_AI_SOURCE;正式區 C6 前仍用 FTP)、IP 對照表(netops.ip-name.*,AI 與 PA 畫面顯示姓名 / 部門)、各 PA 畫面 AI 解讀 / 摘要(POST /ai/explanations)與每日 AI 摘要。測試區 2026-11-16 全部完成;正式區 2026-11-16 起上架(D2;AI 沿用 FTP 舊路徑,C6 ClickHouse 正式區另列)。2026-11-17 即時監控改為戰情室(/netops/firewall/live:Canvas 粒子流向圖、離線 DB-IP 國家對照、網段設定檔 warroom/warroom.json、AI 每小時分析、高風險統計),測試區驗收 71 fps,已合併 main 待正式區部署。",
       "tech": ["Vue 3", "Element Plus + Express 5(舊版 IIS)", "G* 元件 + ECharts + Fastify 5 + TypeScript", "Python pan-os-python", "Redis", "ClickHouse", "Parquet"],
       "endpoints": ["舊版 IIS /NetOps", "測試區 /netops/、netops-api :51292(/api/netops/*,經 BFF)", "正式區(主機 3)/netops/、netops-api :51292(2026-11-16 第一段)", "netops-pa log 接收 :51293(HTTP)、:51294(Syslog),不經 Gateway", "netops-clickhouse、netops-ingest 只在 NetOps 內部網路", "冷歸檔 NAS /mnt/nas-docker/giga-netops/{env}/pa-archive"],
       "docs": ["NetOps/AGENT.md", "NetOps/docs/ARCHITECTURE.md", "NetOps/docs/IMPL-PLAN.md", "NetOps/docs/PA-LIVE-PLAN.md", "NetOps/docs/PA-LOG-CLICKHOUSE-GUIDE.md", "NetOps/docs/VIZ-RULES-DESIGN.md", "NetOps/docs/HANDOFF.md", "NetOps/docs/PROJECT-MAP.md", "NetOps/README.md"]
@@ -145,7 +145,7 @@
       "label": "MES / HRM / FMS / BI",
       "category": "app",
       "kind": "service",
-      "status": "planned",
+      "status": "active",
       "repo": null,
       "detail": null,
       "summary": "其他工程師開發的業務系統:Go MES(51210)、HRM(51220)、FMS(51230)、BI(51280);SPA 發佈到 /mes/、/hrm/、/fms/、/bi/,API 一律經 BFF。",
@@ -423,7 +423,7 @@
     { "from": "giga-file-service", "to": "sql-gw", "type": "data", "label": "schema file_svc:檔案主表 / 操作紀錄 / 舊系統對照(Drizzle,自有帳號只授權 file_svc)", "status": "active" },
     { "from": "giga-file-service", "to": "file-storage", "type": "data", "label": "WSL 實體檔 + NAS 排程補傳", "status": "active" },
     { "from": "giga-file-service", "to": "bpm", "type": "readonly", "label": "BPM 附件:NaNa NoCmDocument(唯讀帳號 file_bpm_ro)+ 5144 取檔;測試區 191 / 正式區 190", "status": "active" },
-    { "from": "giga-file-service", "to": "portalsolar", "type": "readonly", "label": "166 檔案單向同步(原檔名 → UUID)", "status": "planned" },
+    { "from": "giga-file-service", "to": "portalsolar", "type": "readonly", "label": "166 檔案單向同步(原檔名 → UUID)", "status": "active" },
     { "from": "giga-file-service", "to": "legacy-file-backends", "type": "readonly", "label": "NAS 備份拉取歷史檔、舊格式相容層", "status": "planned" },
     { "from": "giga-file-service", "to": "giga-observe", "type": "api", "label": "file-api 紀錄與心跳(backend-sdk monitor)", "status": "active" },
     { "from": "GigaItApp", "to": "giga-api-gateway-bff", "type": "api", "label": "架構觀測頁:經 BFF 路由讀 giga-observe Query / SSE(observe.data.read)", "status": "active" },
