@@ -13,3 +13,6 @@
 
 # CodeGraph 本機索引
 .codegraph/
+
+# 本機專用的公司環境對照(README 去識別化的對照表),不進版控
+*.local.md

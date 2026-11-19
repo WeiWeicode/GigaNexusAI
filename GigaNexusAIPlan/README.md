@@ -19,7 +19,7 @@ npm run serve
 
 ```
 本機：   http://localhost:5190
-區網：   http://10.10.112.13:5190   (乙太網路)
+區網：   http://<本機 IP>:5190   (乙太網路)
 ```
 
 第一次啟動會自動載入 `seed/plan.json` 的初始計畫。

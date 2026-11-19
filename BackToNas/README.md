@@ -1,8 +1,7 @@
 # GigaNexusAI 專案 NAS 備份與拉取工具 (`BackToNas`)
 
-本目錄提供 GigaNexusAI 全專案至公司內部 NAS (`\\10.10.130.31\docker-folder\code\GigaNexusAI`) 的**鏡像備份**與**同仁拉取**執行工具。
+本目錄提供 GigaNexusAI 全專案至公司內部 NAS (`<NAS 分享路徑>\code\GigaNexusAI`) 的**鏡像備份**與**同仁拉取**執行工具。
 
-存放Docker檔案的NAS	docker-backup	@mZ4455!			\\10.10.130.31\docker-folder
 
 ---
 
@@ -26,12 +25,12 @@
 ### ✅ 完整備份的項目
 1. **全專案核心程式碼**：Gateway & BFF、Portal、GigaItApp、RustIt、giga-observe、giga-file-service、GigaNexusAIPlan、hello-world 等。
 2. **所有環境變數檔案 (`.env`)**：完整備份各專案的 `.env`、`.env.*` 設定檔，同仁拉取後無需額外設定連線憑證即可啟動開發環境。
-3. **公司 GitLab 設定**：保留所有儲存庫之公司 GitLab remote (`ssh://git@10.10.130.123:2222/giganexus/...`)，並預設將 `origin` 指向 GitLab。
+3. **公司 GitLab 設定**：保留所有儲存庫之公司 GitLab remote (`ssh://git@<GitLab 主機>:2222/giganexus/...`)，並預設將 `origin` 指向 GitLab。
 4. **憑證與說明文件**：`companySSL/` 憑證檔、`AGENT.md`、`PROJECT-MAP.md` 等。
 
 ### ❌ 嚴格排除的項目
 1. **GitHub 個人設定檔**：
-   - 自動清除所有 `.git/config` 中指向個人 GitHub 的 remote 區塊 (`github.com/WeiWeicode/...`)。
+   - 自動清除所有 `.git/config` 中指向個人 GitHub 的 remote 區塊 (`github.com/<GitHub 帳號>/...`)。
    - 排除 `.github` 資料夾。
    - 確保備份到 NAS 後，同仁絕不會向個人 GitHub 進行 pull/push。
 2. **舊專案與參考用專案**：
@@ -51,7 +50,7 @@
 ### 1. 每日下班手動備份 (負責人)
 1. 每日下班前，雙擊執行 **`備份至NAS.bat`**。
 2. 終端機將依序執行：
-   - 檢查 NAS 連線 (`\\10.10.130.31\docker-folder`)。
+   - 檢查 NAS 連線 (`<NAS 分享路徑>`)。
    - 啟動多執行緒鏡像同步（僅傳輸當日異動的檔案，平時約 5 ~ 15 秒即可完成）。
    - 自動清洗 `.git/config` 中的 GitHub 設定，確認 GitLab 完整保留。
    - 逐一驗證各專案 `.env` 完整性。
@@ -62,7 +61,7 @@
 ### 2. 同仁從 NAS 拉取專案 (團隊同仁)
 同仁有兩種方式執行拉取：
 - **方式 A (直接在 NAS 上執行)**：
-  1. 檔案總管開啟 `\\10.10.130.31\docker-folder\code\GigaNexusAI\BackToNas`
+  1. 檔案總管開啟 `<NAS 分享路徑>\code\GigaNexusAI\BackToNas`
   2. 雙擊 **`從NAS拉取專案.bat`**
 - **方式 B (複製檔案後執行)**：
   1. 將 `BackToNas` 資料夾複製到本機任何位置
