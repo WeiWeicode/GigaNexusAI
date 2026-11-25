@@ -1,0 +1,4170 @@
+{
+  "version": 1,
+  "id": "giga-MES",
+  "name": "giga-MES",
+  "updated": "2026-11-25",
+  "summary": "舊 wei_web 儲能膠 MES 轉移:行為照抄、架構換新、資料表重建並轉移舊資料。規劃中(G0 行為規格、DB0 資料模型完成;尚無程式)。",
+  "sources": [
+    "giga-MES/docs/MIGRATION-PLAN.md",
+    "giga-MES/docs/DATA-MODEL.md",
+    "giga-MES/docs/DATA-MAPPING.md",
+    "giga-MES/docs/API.md"
+  ],
+  "architecture": {
+    "direction": "LR",
+    "layers": [
+      {
+        "id": "client",
+        "name": "用戶端",
+        "description": "瀏覽器(/mes/ SPA)"
+      },
+      {
+        "id": "gateway",
+        "name": "Gateway",
+        "description": "Nginx + BFF:登入、RBAC、路由、內部 Token"
+      },
+      {
+        "id": "api",
+        "name": "mes-api 路由",
+        "description": "modules/<功能>/routes.ts:驗證、權限宣告、格式轉換"
+      },
+      {
+        "id": "core",
+        "name": "業務核心(純函式)",
+        "description": "狀態機、規格判定、必填、量測差異、SPC、轉型規則;不依賴 Fastify 與資料庫"
+      },
+      {
+        "id": "data",
+        "name": "資料存取",
+        "description": "backend/src/db/ 與模組 repository;參數化 SQL、交易、樂觀鎖"
+      },
+      {
+        "id": "store",
+        "name": "資料庫與外部",
+        "description": "giganexus_mes、Gateway 通知 API、giga-observe、舊 WebAppDb 複本"
+      }
+    ],
+    "components": [
+      {
+        "id": "browser",
+        "name": "mes 前端",
+        "layer": "client",
+        "type": "client",
+        "status": "planned",
+        "description": "Vue 3 + src/ui/(由 giga-Portal 複製,工業橙主題);站點表單、檢驗、總表、管制圖"
+      },
+      {
+        "id": "bff",
+        "name": "BFF",
+        "layer": "gateway",
+        "type": "service",
+        "status": "active",
+        "description": "/api/mes/* → mes-api,x-permission 檢查"
+      },
+      {
+        "id": "routes",
+        "name": "routes",
+        "layer": "api",
+        "type": "service",
+        "status": "planned",
+        "description": "batches、stations、inspections、iqc、rework、samples、summaries、exports、spc、change-logs、qc-specs、notify-rules"
+      },
+      {
+        "id": "state-machine",
+        "name": "狀態機",
+        "layer": "core",
+        "type": "module",
+        "status": "planned",
+        "description": "站別 / 狀態轉換表(G0 M1)"
+      },
+      {
+        "id": "judgment",
+        "name": "規格判定",
+        "layer": "core",
+        "type": "module",
+        "status": "planned",
+        "description": "qc_spec 判定、QCAlarm、必填檢查;舊 JS golden test"
+      },
+      {
+        "id": "spc",
+        "name": "SPC",
+        "layer": "core",
+        "type": "module",
+        "status": "planned",
+        "description": "I-MR 界限與 8 條法則"
+      },
+      {
+        "id": "convert",
+        "name": "轉型規則",
+        "layer": "core",
+        "type": "module",
+        "status": "planned",
+        "description": "舊 NVARCHAR → 數值 / 日期 / 時間 / 時長"
+      },
+      {
+        "id": "repo",
+        "name": "repository",
+        "layer": "data",
+        "type": "module",
+        "status": "planned",
+        "description": "Drizzle + mssql;同一交易寫資料與修改紀錄"
+      },
+      {
+        "id": "export-worker",
+        "name": "匯出工作",
+        "layer": "data",
+        "type": "module",
+        "status": "planned",
+        "description": "export_job:送出 → 查詢 → 下載"
+      },
+      {
+        "id": "db",
+        "name": "giganexus_mes",
+        "layer": "store",
+        "type": "datastore",
+        "status": "planned",
+        "description": "schema mes,39 張表 + 4 個總表 view"
+      },
+      {
+        "id": "notify",
+        "name": "Gateway 通知 API",
+        "layer": "store",
+        "type": "external",
+        "status": "active",
+        "description": "/api/notify/send,逐人寄送(notify_rule 工號)"
+      },
+      {
+        "id": "observe",
+        "name": "giga-observe",
+        "layer": "store",
+        "type": "external",
+        "status": "active",
+        "description": "監控紀錄與心跳"
+      },
+      {
+        "id": "migration",
+        "name": "migration/ 轉移腳本",
+        "layer": "data",
+        "type": "module",
+        "status": "planned",
+        "description": "src_webappdb → mes.*,可重複執行;轉不過去寫 migration_issue"
+      },
+      {
+        "id": "legacy",
+        "name": "舊 WebAppDb 複本",
+        "layer": "store",
+        "type": "external",
+        "status": "planned",
+        "description": "src_webappdb(唯讀)"
+      }
+    ],
+    "flows": [
+      {
+        "from": "browser",
+        "to": "bff",
+        "label": "/api/mes/*",
+        "status": "planned"
+      },
+      {
+        "from": "bff",
+        "to": "routes",
+        "label": "X-Internal-Token",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "state-machine",
+        "label": "站點開始 / 完成、判定",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "judgment",
+        "label": "自動判定",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "spc",
+        "label": "管制圖",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "repo",
+        "label": "查詢 / 交易",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "export-worker",
+        "label": "匯出工作",
+        "status": "planned"
+      },
+      {
+        "from": "repo",
+        "to": "db",
+        "label": "參數化 SQL",
+        "status": "planned"
+      },
+      {
+        "from": "export-worker",
+        "to": "db",
+        "label": "總表 view",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "notify",
+        "label": "判定不合格通知",
+        "status": "planned"
+      },
+      {
+        "from": "routes",
+        "to": "observe",
+        "label": "setupGateway 監控",
+        "status": "planned"
+      },
+      {
+        "from": "migration",
+        "to": "legacy",
+        "label": "唯讀",
+        "status": "planned"
+      },
+      {
+        "from": "migration",
+        "to": "convert",
+        "label": "轉型規則",
+        "status": "planned"
+      },
+      {
+        "from": "migration",
+        "to": "db",
+        "label": "寫入 mes.*",
+        "status": "planned"
+      }
+    ]
+  },
+  "database": {
+    "notes": [
+      "2026-11-25 規劃(DB0),migration 只寫不套;型別精度在舊資料剖析(migration/00-profile/profile.sql)後微調。",
+      "每張業務表另有 id(BIGINT IDENTITY)、legacy_id(舊表 id);站點表以 batch_id + record_no 唯一(Q8 可調整)。",
+      "欄位與舊表對照見 giga-MES/docs/DATA-MAPPING.md。"
+    ],
+    "commonColumns": [
+      {
+        "name": "created_at",
+        "type": "DATETIME2(3)"
+      },
+      {
+        "name": "created_by",
+        "type": "NVARCHAR(64)"
+      },
+      {
+        "name": "updated_at",
+        "type": "DATETIME2(3)"
+      },
+      {
+        "name": "updated_by",
+        "type": "NVARCHAR(64)"
+      },
+      {
+        "name": "row_ver",
+        "type": "ROWVERSION",
+        "note": "樂觀鎖"
+      }
+    ],
+    "stores": [
+      {
+        "id": "mes",
+        "name": "giganexus_mes",
+        "engine": "SQL Server 2012",
+        "access": "讀寫",
+        "description": "giga-MES 獨立資料庫,schema mes(測試 giganexus_mes_test、整合測試 giganexus_mes_poc_test)"
+      },
+      {
+        "id": "webappdb",
+        "name": "WebAppDb(舊)",
+        "engine": "SQL Server 2012",
+        "access": "唯讀(只供轉移)",
+        "description": "舊 wei_web MES 30 張表;測試庫放複本 src_webappdb"
+      }
+    ],
+    "groups": [
+      {
+        "id": "code",
+        "name": "代碼表",
+        "description": "流程別、站別、狀態、判定結果、檢驗類型、產品"
+      },
+      {
+        "id": "m1",
+        "name": "批號",
+        "description": "批號主檔、重工來源、重工流水號"
+      },
+      {
+        "id": "m2",
+        "name": "儲能站點",
+        "description": "合成站-1/2、乾燥、粉碎、成品填裝與原料"
+      },
+      {
+        "id": "m3",
+        "name": "改質站點",
+        "description": "改質站、調整站、改質填裝站與原料"
+      },
+      {
+        "id": "m4",
+        "name": "製程檢驗與規格",
+        "description": "IPQC-1~4、FQC、IPQC-調整、規格、通知收件人"
+      },
+      {
+        "id": "m5",
+        "name": "進料檢驗",
+        "description": "IQC 有機、固體、鹽類、改質添加劑"
+      },
+      {
+        "id": "m6",
+        "name": "重工與留樣",
+        "description": "重工紀錄、留樣、處置"
+      },
+      {
+        "id": "m7",
+        "name": "匯出",
+        "description": "Excel 匯出工作"
+      },
+      {
+        "id": "change-log",
+        "name": "修改紀錄",
+        "description": "change_log"
+      },
+      {
+        "id": "t1",
+        "name": "轉移",
+        "description": "舊資料轉移問題"
+      }
+    ],
+    "tables": [
+      {
+        "id": "mes.product",
+        "store": "mes",
+        "group": "code",
+        "status": "planned",
+        "audit": true,
+        "description": "產品(代碼 = 舊 MES.Product 原值)",
+        "columns": [
+          {
+            "name": "code",
+            "type": "NVARCHAR(30)",
+            "key": "PK"
+          },
+          {
+            "name": "name_zh",
+            "type": "NVARCHAR(50)",
+            "note": "畫面與匯出顯示的中文(= 舊系統字串)"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.process_type",
+        "store": "mes",
+        "group": "code",
+        "status": "planned",
+        "audit": true,
+        "description": "流程別",
+        "columns": [
+          {
+            "name": "code",
+            "type": "VARCHAR(20)",
+            "key": "PK"
+          },
+          {
+            "name": "name_zh",
+            "type": "NVARCHAR(50)",
+            "note": "畫面與匯出顯示的中文(= 舊系統字串)"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.station",
+        "store": "mes",
+        "group": "code",
+        "status": "planned",
+        "audit": true,
+        "description": "站別",
+        "columns": [
+          {
+            "name": "code",
+            "type": "VARCHAR(20)",
+            "key": "PK"
+          },
+          {
+            "name": "name_zh",
+            "type": "NVARCHAR(50)",
+            "note": "畫面與匯出顯示的中文(= 舊系統字串)"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.batch_state",
+        "store": "mes",
+        "group": "code",
+        "status": "planned",
+        "audit": true,
+        "description": "批號狀態",
+        "columns": [
+          {
+            "name": "code",
+            "type": "VARCHAR(20)",
+            "key": "PK"
+          },
+          {
+            "name": "name_zh",
+            "type": "NVARCHAR(50)",
+            "note": "畫面與匯出顯示的中文(= 舊系統字串)"
+          },
+          {
+            "name": "is_legacy",
+            "type": "BIT",
+            "note": "只供舊資料,狀態機不轉入"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.qc_result",
+        "store": "mes",
+        "group": "code",
+        "status": "planned",
+        "audit": true,
+        "description": "判定結果",
+        "columns": [
+          {
+            "name": "code",
+            "type": "VARCHAR(10)",
+            "key": "PK"
+          },
+          {
+            "name": "name_zh",
+            "type": "NVARCHAR(50)",
+            "note": "畫面與匯出顯示的中文(= 舊系統字串)"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.inspection_type",
+        "store": "mes",
+        "group": "code",
+        "status": "planned",
+        "audit": true,
+        "description": "檢驗類型(IPQC1~4、FQC、IPQC_ADJ、IQC 四類)",
+        "columns": [
+          {
+            "name": "code",
+            "type": "VARCHAR(20)",
+            "key": "PK"
+          },
+          {
+            "name": "name_zh",
+            "type": "NVARCHAR(50)",
+            "note": "畫面與匯出顯示的中文(= 舊系統字串)"
+          },
+          {
+            "name": "auto_judge_mode",
+            "type": "VARCHAR(10)",
+            "note": "spec 依 qc_spec;manual 一律人工判定(FQC、IPQC-調整,D-04/D-05);pass 一律通過(改質添加劑,D-06)"
+          },
+          {
+            "name": "notify_on_fail",
+            "type": "BIT",
+            "note": "自動判定不合格時寄通知(IPQC-調整 0,D-05)"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.batch",
+        "store": "mes",
+        "group": "m1",
+        "status": "planned",
+        "audit": true,
+        "description": "批號主表(取代 MES)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "run_id",
+            "type": "NVARCHAR(35)",
+            "note": "RunID,唯一"
+          },
+          {
+            "name": "product_code",
+            "type": "NVARCHAR(30)",
+            "key": "FK"
+          },
+          {
+            "name": "process_code",
+            "type": "VARCHAR(20)",
+            "key": "FK"
+          },
+          {
+            "name": "station_code",
+            "type": "VARCHAR(20)",
+            "key": "FK"
+          },
+          {
+            "name": "state_code",
+            "type": "VARCHAR(20)",
+            "key": "FK"
+          },
+          {
+            "name": "category",
+            "type": "NVARCHAR(30)",
+            "note": "生產類別:量產 / 試量產 / RD / 功能測試"
+          },
+          {
+            "name": "created_date",
+            "type": "DATE",
+            "note": "建立日期(舊 CreationMES;13 筆舊資料為 NULL)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.batch_rework_source",
+        "store": "mes",
+        "group": "m6",
+        "status": "planned",
+        "audit": false,
+        "description": "重工批號的來源批號(取代 MES.reWorkRunId 的 ; 串接)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "重工新批號(RW_ / RT_)"
+          },
+          {
+            "name": "source_batch_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "來源批號"
+          },
+          {
+            "name": "sort",
+            "type": "SMALLINT"
+          }
+        ]
+      },
+      {
+        "id": "mes.batch_serial",
+        "store": "mes",
+        "group": "m6",
+        "status": "planned",
+        "audit": false,
+        "description": "重工批號流水號(每月、每種前綴各自從 1 起;後端在交易內以 UPDLOCK 取號,D-40)",
+        "columns": [
+          {
+            "name": "prefix",
+            "type": "VARCHAR(10)",
+            "key": "PK",
+            "note": "RW_ / RT_"
+          },
+          {
+            "name": "yyyymm",
+            "type": "CHAR(6)",
+            "key": "PK"
+          },
+          {
+            "name": "last_no",
+            "type": "INT"
+          }
+        ]
+      },
+      {
+        "id": "mes.synthesis_1",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "合成站-1(取代 MESSynthesisStation1)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "blender",
+            "type": "NVARCHAR(10)",
+            "note": "攪拌機"
+          },
+          {
+            "name": "synthetic_date",
+            "type": "DATE",
+            "note": "合成日期"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "shift",
+            "type": "NVARCHAR(10)",
+            "note": "班別"
+          },
+          {
+            "name": "raw_material_gross_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "rotation_rpm",
+            "type": "DECIMAL(10,3)",
+            "note": "RPM;自轉"
+          },
+          {
+            "name": "revolution_rpm",
+            "type": "DECIMAL(10,3)",
+            "note": "RPM;公轉"
+          },
+          {
+            "name": "room_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "water_bath_set_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "water_bath_flow_rate",
+            "type": "DECIMAL(10,3)",
+            "note": "L/min"
+          },
+          {
+            "name": "pre_monomer_time",
+            "type": "TIME(0)",
+            "note": "投單體前時間"
+          },
+          {
+            "name": "pre_monomer_inner_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "pre_monomer_outer_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "pre_solid1_time",
+            "type": "TIME(0)",
+            "note": "投固1前時間"
+          },
+          {
+            "name": "pre_solid1_inner_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "pre_solid1_outer_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "warm_to_64c_time",
+            "type": "TIME(0)",
+            "note": "升溫至 64°C 時間;剖析確認是時刻或分鐘"
+          },
+          {
+            "name": "time_to_peak_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;至峰溫時間(分鐘)"
+          },
+          {
+            "name": "peak_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "reaction_sampling_time",
+            "type": "TIME(0)",
+            "note": "反應中取樣時間"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.synthesis_1_material",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "合成站-1 原料(取代 MESRawMaterial1 + MESLinkMESRawMaterial1)(取代 MESRawMaterial1)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "synthesis_1_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "以 RunID 找該批號的 synthesis_1;沒有站點紀錄 → migration_issue"
+          },
+          {
+            "name": "material_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_class",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_batch_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "weight",
+            "type": "DECIMAL(12,4)",
+            "note": "依 unit"
+          },
+          {
+            "name": "unit",
+            "type": "NVARCHAR(10)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.synthesis_2",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "合成站-2(取代 MESSynthesisStation2)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "blender",
+            "type": "NVARCHAR(10)"
+          },
+          {
+            "name": "synthetic_date",
+            "type": "DATE"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "raw_material_gross_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "rotation_rpm",
+            "type": "DECIMAL(10,3)",
+            "note": "RPM"
+          },
+          {
+            "name": "revolution_rpm",
+            "type": "DECIMAL(10,3)",
+            "note": "RPM"
+          },
+          {
+            "name": "room_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "water_bath_set_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "water_bath_flow_rate",
+            "type": "DECIMAL(10,3)",
+            "note": "L/min"
+          },
+          {
+            "name": "end_with_barrel_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;合成結束含桶重"
+          },
+          {
+            "name": "end_empty_barrel_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;合成結束空桶重"
+          },
+          {
+            "name": "synthetic_net_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;合成淨重"
+          },
+          {
+            "name": "fixed_loss",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;固定損耗"
+          },
+          {
+            "name": "yield_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;產量(公斤)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.synthesis_2_material",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "合成站-2 原料(取代 MESRawMaterial2)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "synthesis_2_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "以 RunID 找 synthesis_2"
+          },
+          {
+            "name": "material_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_class",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_batch_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "weight",
+            "type": "DECIMAL(12,4)",
+            "note": "依 unit"
+          },
+          {
+            "name": "unit",
+            "type": "NVARCHAR(10)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.drying",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "乾燥站(取代 MESDryingStation)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "drying_date",
+            "type": "DATE"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "supply_pressure_feeding",
+            "type": "DECIMAL(10,3)",
+            "note": "kgf/cm²;入料壓力"
+          },
+          {
+            "name": "supply_pressure_before_pump",
+            "type": "DECIMAL(10,3)",
+            "note": "kgf/cm²;中繼桶內壓-伺服馬達前"
+          },
+          {
+            "name": "supply_pressure_after_pump",
+            "type": "DECIMAL(10,3)",
+            "note": "kgf/cm²;中繼桶內壓-塗頭壓力"
+          },
+          {
+            "name": "teflon_cloth_no_replaced",
+            "type": "NVARCHAR(30)",
+            "note": "鐵氟龍布編號更換日期(編號與日期混寫,保留文字)"
+          },
+          {
+            "name": "mold_no",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "mold_shim_size",
+            "type": "DECIMAL(10,3)",
+            "note": "mm"
+          },
+          {
+            "name": "servo_speed_set",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "servo_speed_correction",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "feeding_amount",
+            "type": "DECIMAL(10,3)",
+            "note": "kg/hr"
+          },
+          {
+            "name": "mold_gap_operation_side",
+            "type": "DECIMAL(10,3)",
+            "note": "mm"
+          },
+          {
+            "name": "mold_gap_device_side",
+            "type": "DECIMAL(10,3)",
+            "note": "mm"
+          },
+          {
+            "name": "line_speed_set",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "line_speed_actual",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "filter_permeability_z1",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "filter_permeability_z2",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "filter_permeability_z3",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "filter_permeability_z4",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "air_intake_hz_z1",
+            "type": "DECIMAL(10,3)",
+            "note": "Hz"
+          },
+          {
+            "name": "air_intake_hz_z2",
+            "type": "DECIMAL(10,3)",
+            "note": "Hz"
+          },
+          {
+            "name": "air_intake_hz_z3",
+            "type": "DECIMAL(10,3)",
+            "note": "Hz"
+          },
+          {
+            "name": "air_intake_hz_z4",
+            "type": "DECIMAL(10,3)",
+            "note": "Hz"
+          },
+          {
+            "name": "inlet_valve_opening_z1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "inlet_valve_opening_z2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "inlet_valve_opening_z3",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "inlet_valve_opening_z4",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "env_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "env_humidity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "oven_set_temp_z1",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_set_temp_z2",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_set_temp_z3",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_set_temp_z4",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_temp_before_coating_z1",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_temp_before_coating_z2",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_temp_before_coating_z3",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "oven_temp_before_coating_z4",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "coating_temp_z1",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "coating_temp_z2",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "coating_temp_z3",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "coating_temp_z4",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "return_valve_opening_z1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "return_valve_opening_z2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "return_valve_opening_z3",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "return_valve_opening_z4",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z1_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z1_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z2_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z2_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z3_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z3_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z4_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "exhaust_valve_opening_z4_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "spare_z1",
+            "type": "NVARCHAR(30)",
+            "note": "備用欄位,保留文字"
+          },
+          {
+            "name": "spare_z2",
+            "type": "NVARCHAR(30)",
+            "note": "備用欄位,保留文字"
+          },
+          {
+            "name": "spare_z3",
+            "type": "NVARCHAR(30)",
+            "note": "備用欄位,保留文字"
+          },
+          {
+            "name": "spare_z4",
+            "type": "NVARCHAR(30)",
+            "note": "備用欄位,保留文字"
+          },
+          {
+            "name": "wind_knife_action_type",
+            "type": "NVARCHAR(30)",
+            "note": "作動型式"
+          },
+          {
+            "name": "wind_knife_pressure",
+            "type": "DECIMAL(10,3)",
+            "note": "kgf/cm²"
+          },
+          {
+            "name": "total_exhaust_hz",
+            "type": "DECIMAL(10,3)",
+            "note": "Hz"
+          },
+          {
+            "name": "total_exhaust_mesh_1",
+            "type": "NVARCHAR(30)",
+            "note": "剖析後決定是否為數值"
+          },
+          {
+            "name": "total_exhaust_mesh_2",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "total_exhaust_mesh_3",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "receiving_blower_motor_on",
+            "type": "NVARCHAR(30)",
+            "note": "開啟紀錄;剖析後決定是否改 BIT"
+          },
+          {
+            "name": "receiving_fan_motor_on",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "input_empty_drum_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "input_feeding_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "input_residue_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "input_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "input_cold_gum_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "drying_start_at",
+            "type": "DATETIME2(0)",
+            "note": "日期取 DryingDate"
+          },
+          {
+            "name": "drying_finish_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "drying_total_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;標示為「總時數(分)」;Q7 新資料由開始 / 結束計算"
+          },
+          {
+            "name": "drying_rate",
+            "type": "DECIMAL(10,3)",
+            "note": "kg/min"
+          },
+          {
+            "name": "theoretical_dry_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "actual_dry_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "consumption_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;耗損量"
+          },
+          {
+            "name": "drying_yield",
+            "type": "DECIMAL(10,3)",
+            "note": "kg/hr;乾燥產率"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.crushing",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "粉碎站(取代 MESCrushingStation)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "crush_date",
+            "type": "DATE"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "speed_100_check",
+            "type": "NVARCHAR(30)",
+            "note": "「轉速100%」確認欄,剖析後決定是否改 BIT"
+          },
+          {
+            "name": "filter_size_check",
+            "type": "NVARCHAR(30)",
+            "note": "「濾網 1mm」確認欄"
+          },
+          {
+            "name": "current_8a_check",
+            "type": "NVARCHAR(30)",
+            "note": "「電流<8A」確認欄"
+          },
+          {
+            "name": "input_feeding_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "input_residue_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "input_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "crushing_start_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "crushing_finish_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "crushing_total_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;標示為「總時數(min)」"
+          },
+          {
+            "name": "actual_crushed_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "consumption_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "dry_yield_ratio",
+            "type": "DECIMAL(9,5)",
+            "note": "比值;舊系統以 實際/投入 計算未乘 100(D-26),原值保留為比值"
+          },
+          {
+            "name": "ambient_humidity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.filling",
+        "store": "mes",
+        "group": "m2",
+        "status": "planned",
+        "audit": true,
+        "description": "成品填裝(取代 MESFinishedProductFilling)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "filling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "nitrogen_or_vacuum",
+            "type": "NVARCHAR(30)",
+            "note": "氮氣 / 真空"
+          },
+          {
+            "name": "filling_pattern_no",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "mode_a2_pumping_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_a2_inflation_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_a2_sealing_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_a2_cooldown_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_a2_positioning_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_a2_press_down_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_b1_pumping_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_b1_inflation_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_b1_sealing_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "mode_b1_cooldown_sec",
+            "type": "DECIMAL(10,3)",
+            "note": "s"
+          },
+          {
+            "name": "material_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "filling_start_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "filling_finish_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "filling_total_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min"
+          },
+          {
+            "name": "filling_quantity",
+            "type": "INT",
+            "note": "包(1000 g)"
+          },
+          {
+            "name": "reserve_sample_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg;留樣"
+          },
+          {
+            "name": "filling_failures",
+            "type": "INT",
+            "note": "件"
+          },
+          {
+            "name": "aluminum_bag_count",
+            "type": "INT",
+            "note": "個"
+          },
+          {
+            "name": "filling_yield",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "failure_description",
+            "type": "NVARCHAR(200)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.ipqc_1",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "IPQC-1(熱熔膠)(取代 MESIPQC1)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "sampling_quantity",
+            "type": "DECIMAL(10,2)",
+            "note": "取樣數量"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)",
+            "note": "IPQC2–4 畫面標示為「檢驗日期」,剖析確認存的是時間或日期"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "viscosity_bath_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C;黏度恆溫水槽溫度"
+          },
+          {
+            "name": "hot_glue_viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "hot_glue_viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "hot_glue_viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)",
+            "note": "「系統判定」= 自動判定通過"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.ipqc_2",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "IPQC-2(冷膠)(取代 MESIPQC2)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "sampling_quantity",
+            "type": "DECIMAL(10,2)",
+            "note": "取樣數量"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)",
+            "note": "IPQC2–4 畫面標示為「檢驗日期」,剖析確認存的是時間或日期"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "viscosity_bath_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C;黏度恆溫水槽溫度"
+          },
+          {
+            "name": "cold_gum_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "cold_glue_5pct_viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "cold_glue_5pct_viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "cold_glue_5pct_viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "cold_glue_5pct_ph_1",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "cold_glue_5pct_ph_2",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "cold_glue_5pct_ph_3",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)",
+            "note": "「系統判定」= 自動判定通過"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.ipqc_3",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "IPQC-3(乾粉)(取代 MESIPQC3)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "sampling_quantity",
+            "type": "DECIMAL(10,2)",
+            "note": "取樣數量"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)",
+            "note": "IPQC2–4 畫面標示為「檢驗日期」,剖析確認存的是時間或日期"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "viscosity_bath_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C;黏度恆溫水槽溫度"
+          },
+          {
+            "name": "dry_powder_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_ph_1",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_5pct_ph_2",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_5pct_ph_3",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)",
+            "note": "「系統判定」= 自動判定通過"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.ipqc_4",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "IPQC-4(乾粉)(取代 MESIPQC4)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "sampling_quantity",
+            "type": "DECIMAL(10,2)",
+            "note": "取樣數量"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)",
+            "note": "IPQC2–4 畫面標示為「檢驗日期」,剖析確認存的是時間或日期"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "viscosity_bath_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C;黏度恆溫水槽溫度"
+          },
+          {
+            "name": "dry_powder_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_ph_1",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_5pct_ph_2",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_5pct_ph_3",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)",
+            "note": "「系統判定」= 自動判定通過"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.fqc",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "FQC(取代 MESFQC)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "sampling_quantity",
+            "type": "DECIMAL(10,2)",
+            "note": "取樣數量"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)",
+            "note": "IPQC2–4 畫面標示為「檢驗日期」,剖析確認存的是時間或日期"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "viscosity_bath_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C;黏度恆溫水槽溫度"
+          },
+          {
+            "name": "hot_glue_viscosity",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "cold_gum_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "cold_glue_5pct_viscosity",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "cold_glue_5pct_ph",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%;彙總欄;剖析確認是否為 _1~3 串接"
+          },
+          {
+            "name": "dry_powder_solid_content_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_powder_solid_content_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_powder_solid_content_3",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_powder_5pct_ph_1",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_5pct_ph_2",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "dry_powder_5pct_ph_3",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "external_assessment",
+            "type": "NVARCHAR(30)",
+            "note": "外觀評估"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)",
+            "note": "「系統判定」= 自動判定通過"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.improve",
+        "store": "mes",
+        "group": "m3",
+        "status": "planned",
+        "audit": true,
+        "description": "改質站(取代 MESImproveQuality)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(100)",
+            "note": "站點表單的產品名稱快照"
+          },
+          {
+            "name": "mixer",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "shift",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "reaction_tank_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "raw_material_total_weight",
+            "type": "DECIMAL(12,6)",
+            "note": "kg;舊 DECIMAL(10,5)"
+          },
+          {
+            "name": "room_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "humidity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "water_resistance",
+            "type": "DECIMAL(12,2)",
+            "note": "Ω"
+          },
+          {
+            "name": "rotation_rpm",
+            "type": "INT",
+            "note": "RPM"
+          },
+          {
+            "name": "revolution_rpm",
+            "type": "INT",
+            "note": "RPM"
+          },
+          {
+            "name": "modification_date",
+            "type": "DATE"
+          },
+          {
+            "name": "start_time",
+            "type": "TIME(0)"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)"
+          },
+          {
+            "name": "modification_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;改質時間 = 取樣時間 − 開始時間,舊存 \"x h y min\" 文字"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.improve_material",
+        "store": "mes",
+        "group": "m3",
+        "status": "planned",
+        "audit": true,
+        "description": "改質站原料(取代 MESImproveQualityRawMaterial)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "improve_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "舊 MESImproveQuality.id → improve.id(以 legacy_id 對應);NULL 時以 RunID 找"
+          },
+          {
+            "name": "material_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_class",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_batch_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "weight",
+            "type": "DECIMAL(12,4)",
+            "note": "依 unit"
+          },
+          {
+            "name": "unit",
+            "type": "NVARCHAR(10)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.adjustment",
+        "store": "mes",
+        "group": "m3",
+        "status": "planned",
+        "audit": true,
+        "description": "調整站(取代 MESAdjustmentStation)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "mixer",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "shift",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "reaction_barrel_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "raw_material_total_weight",
+            "type": "DECIMAL(12,6)",
+            "note": "kg"
+          },
+          {
+            "name": "rotation_rpm",
+            "type": "DECIMAL(10,2)",
+            "note": "RPM"
+          },
+          {
+            "name": "revolution_rpm",
+            "type": "DECIMAL(10,2)",
+            "note": "RPM"
+          },
+          {
+            "name": "adjustment_date",
+            "type": "DATE"
+          },
+          {
+            "name": "start_time",
+            "type": "TIME(0)"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_time",
+            "type": "TIME(0)"
+          },
+          {
+            "name": "adjustment_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;調整時間,舊存 \"x h y min\" 文字"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.adjustment_material",
+        "store": "mes",
+        "group": "m3",
+        "status": "planned",
+        "audit": true,
+        "description": "調整站原料(Q9)(取代 MESAdjustmentStationRawMaterial)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "adjustment_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "Q9:欄位名指改質站,剖析確認實際存的是 MESAdjustmentStation.id 或 MESImproveQuality.id;轉移時以 RunID 找該批號的 adjustment(可調整,見 DATA-MAPPING §4)"
+          },
+          {
+            "name": "material_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_class",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "material_batch_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "weight",
+            "type": "DECIMAL(12,4)",
+            "note": "依 unit"
+          },
+          {
+            "name": "unit",
+            "type": "NVARCHAR(10)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.ipqc_adjustment",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "IPQC-調整(取代 MESIPQCAdjustment)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "part_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "sampling_quantity",
+            "type": "DECIMAL(10,2)"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspection_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "viscosity_bath_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "solid_content_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "solid_content_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "solid_content_3",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "ph_1",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "ph_2",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "ph_3",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "process_selection",
+            "type": "NVARCHAR(20)",
+            "note": "乾粉 / 濕膠去向選擇"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.improve_filling",
+        "store": "mes",
+        "group": "m3",
+        "status": "planned",
+        "audit": true,
+        "description": "改質填裝站(取代 MESImproveQualityFillingStation)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "record_no",
+            "type": "SMALLINT",
+            "note": "Q8:同批號同站第幾筆;新系統只寫 1"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "pressing_machine",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "filling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "shift",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "operator_emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "operator_name",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "start_time",
+            "type": "TIME(0)"
+          },
+          {
+            "name": "end_time",
+            "type": "TIME(0)"
+          },
+          {
+            "name": "total_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;總時間,舊存 \"x h y min\" 文字"
+          },
+          {
+            "name": "barrel_count",
+            "type": "DECIMAL(10,2)",
+            "note": "桶"
+          },
+          {
+            "name": "weight_per_barrel",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "sample_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "total_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "barrels_per_hour",
+            "type": "DECIMAL(10,3)",
+            "note": "桶/hr"
+          },
+          {
+            "name": "raw_material_total_weight",
+            "type": "DECIMAL(12,6)",
+            "note": "kg"
+          },
+          {
+            "name": "yield_pct",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.rework",
+        "store": "mes",
+        "group": "m6",
+        "status": "planned",
+        "audit": true,
+        "description": "重工站點(混合 rw_* / 乾燥 rt_*)(取代 MESReworkSite)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "runcard_no",
+            "type": "NVARCHAR(30)",
+            "note": "唯一"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "重工產生的新批號"
+          },
+          {
+            "name": "source_batch_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "原批號 → batch.id;對不到 → migration_issue 並保留在 source_run_id_text"
+          },
+          {
+            "name": "source_run_id_text",
+            "type": "NVARCHAR(35)",
+            "note": "原批號對不到 batch 時保留舊字串"
+          },
+          {
+            "name": "rework_item",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "machine",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "mix_date",
+            "type": "DATE"
+          },
+          {
+            "name": "mix_operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "mix_input_batch",
+            "type": "NVARCHAR(200)",
+            "note": "投入批號(可能多個)"
+          },
+          {
+            "name": "mix_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "mix_viscosity",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "mix_original_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "mix_actual_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "mix_start_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "mix_end_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "mix_total_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;單位剖析確認"
+          },
+          {
+            "name": "mix_input_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "mix_product_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "mix_ambient_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "mix_ambient_humidity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_input_batch",
+            "type": "NVARCHAR(200)"
+          },
+          {
+            "name": "dry_solid_content",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "dry_viscosity",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "dry_date",
+            "type": "DATE"
+          },
+          {
+            "name": "dry_operator_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "dry_set_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "dry_actual_temp",
+            "type": "DECIMAL(6,2)",
+            "note": "°C"
+          },
+          {
+            "name": "dry_drying_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min;烘乾時間;單位剖析確認"
+          },
+          {
+            "name": "dry_start_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "dry_end_at",
+            "type": "DATETIME2(0)"
+          },
+          {
+            "name": "dry_total_min",
+            "type": "DECIMAL(8,2)",
+            "note": "min"
+          },
+          {
+            "name": "dry_input_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "dry_product_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.sample",
+        "store": "mes",
+        "group": "m6",
+        "status": "planned",
+        "audit": true,
+        "description": "留樣清單(取代 MESSampleList)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "sample_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "以 run_id 對應 batch;對不到時 batch_id NULL、原文字存 batch_no_text(不寫 issue)"
+          },
+          {
+            "name": "batch_no_text",
+            "type": "NVARCHAR(50)",
+            "note": "舊生產批號字串(對不到 batch 時保留)"
+          },
+          {
+            "name": "status",
+            "type": "NVARCHAR(50)",
+            "note": "留樣狀態 / 製程段(舊畫面自由輸入,實際值以 profile.sql §5.1 確認)"
+          },
+          {
+            "name": "retained_quantity",
+            "type": "DECIMAL(12,4)",
+            "note": "依 sample_unit;舊 FLOAT"
+          },
+          {
+            "name": "sample_unit",
+            "type": "NVARCHAR(5)"
+          },
+          {
+            "name": "retention_date",
+            "type": "DATE"
+          },
+          {
+            "name": "shelf_life",
+            "type": "DECIMAL(8,2)",
+            "note": "依 term_unit;舊 FLOAT"
+          },
+          {
+            "name": "term_unit",
+            "type": "NVARCHAR(5)"
+          },
+          {
+            "name": "expiration_date",
+            "type": "DATE"
+          },
+          {
+            "name": "retention_person_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.sample_disposal",
+        "store": "mes",
+        "group": "m6",
+        "status": "planned",
+        "audit": true,
+        "description": "留樣處置紀錄(取代 MESSampleHandlingLog)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "sample_id",
+            "type": "BIGINT",
+            "key": "FK",
+            "note": "舊 MESSampleList.id → sample.id(legacy_id)"
+          },
+          {
+            "name": "disposal_date",
+            "type": "DATE"
+          },
+          {
+            "name": "disposal_quantity",
+            "type": "DECIMAL(12,4)",
+            "note": "依 unit;舊 FLOAT,四捨五入到 4 位"
+          },
+          {
+            "name": "disposal_unit",
+            "type": "NVARCHAR(5)"
+          },
+          {
+            "name": "remaining_quantity",
+            "type": "DECIMAL(12,4)",
+            "note": "依 unit"
+          },
+          {
+            "name": "remaining_unit",
+            "type": "NVARCHAR(5)"
+          },
+          {
+            "name": "instructions",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "disposal_person_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.iqc_organic",
+        "store": "mes",
+        "group": "m5",
+        "status": "planned",
+        "audit": true,
+        "description": "IQC-有機添加劑(取代 MESOrganicAdditive)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "lot_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "factory_batch_no",
+            "type": "NVARCHAR(50)",
+            "note": "廠商批號"
+          },
+          {
+            "name": "inspection_mode",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "total_feed_amount",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "receipt_date",
+            "type": "DATE",
+            "note": "進料日期"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspection_date",
+            "type": "DATE"
+          },
+          {
+            "name": "exterior",
+            "type": "NVARCHAR(30)",
+            "note": "外觀"
+          },
+          {
+            "name": "coa",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "coa_name",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "coa_purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "test_purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "part_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "gc_main_peak_area",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "gc_secondary_peak_area",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "gc_other_impurity_area",
+            "type": "DECIMAL(10,3)"
+          },
+          {
+            "name": "purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%;判定欄位(規則:純度 > 98)"
+          },
+          {
+            "name": "impurity_concentration",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "secondary_peak_concentration",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "sample_name",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_created_date",
+            "type": "DATE",
+            "note": "舊建立日期;新 created_at 由轉移時間填入"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.iqc_solid",
+        "store": "mes",
+        "group": "m5",
+        "status": "planned",
+        "audit": true,
+        "description": "IQC-固體添加劑(取代 MESSolidAdditiveInspection)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "lot_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "factory_batch_no",
+            "type": "NVARCHAR(50)",
+            "note": "廠商批號"
+          },
+          {
+            "name": "inspection_mode",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "total_feed_amount",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "receipt_date",
+            "type": "DATE",
+            "note": "進料日期"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspection_date",
+            "type": "DATE"
+          },
+          {
+            "name": "exterior",
+            "type": "NVARCHAR(30)",
+            "note": "外觀"
+          },
+          {
+            "name": "coa",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "coa_name",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "coa_purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "test_purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "part_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "test_items",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "check_data",
+            "type": "DECIMAL(6,3)",
+            "note": "%;判定欄位(規則:檢驗數據 > 90)"
+          },
+          {
+            "name": "qualitative_test_items",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "test_results",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "inspection_order_no",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.iqc_salt",
+        "store": "mes",
+        "group": "m5",
+        "status": "planned",
+        "audit": true,
+        "description": "IQC-鹽類(取代 MESSaltTest)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "lot_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "factory_batch_no",
+            "type": "NVARCHAR(50)",
+            "note": "廠商批號"
+          },
+          {
+            "name": "inspection_mode",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "total_feed_amount",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "receipt_date",
+            "type": "DATE",
+            "note": "進料日期"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspection_date",
+            "type": "DATE"
+          },
+          {
+            "name": "exterior",
+            "type": "NVARCHAR(30)",
+            "note": "外觀"
+          },
+          {
+            "name": "coa",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "coa_name",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "coa_purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "test_purity",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "part_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "test_items",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "check_data",
+            "type": "DECIMAL(6,3)",
+            "note": "%;判定欄位(規則:檢驗數據 > 90)"
+          },
+          {
+            "name": "qualitative_test_items",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "test_results",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)",
+            "note": "工號(新資料由登入身分帶入;舊資料 NULL)"
+          },
+          {
+            "name": "inspection_order_no",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.iqc_improve_additive",
+        "store": "mes",
+        "group": "m5",
+        "status": "planned",
+        "audit": true,
+        "description": "IQC-改質添加劑(取代 MESImproveQualityAdditive)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "part_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "product_name",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "factory_batch_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "lot_no",
+            "type": "NVARCHAR(50)"
+          },
+          {
+            "name": "inspection_mode",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "receipt_date",
+            "type": "DATE"
+          },
+          {
+            "name": "sampling_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspection_date",
+            "type": "DATE"
+          },
+          {
+            "name": "inspector_emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "inspector_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "feed_weight",
+            "type": "DECIMAL(12,4)",
+            "note": "kg"
+          },
+          {
+            "name": "solid_content_1",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "solid_content_2",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "solid_content_3",
+            "type": "DECIMAL(6,3)",
+            "note": "%"
+          },
+          {
+            "name": "viscosity_1",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "viscosity_2",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "viscosity_3",
+            "type": "DECIMAL(12,2)",
+            "note": "cP"
+          },
+          {
+            "name": "ph_1",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "ph_2",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "ph_3",
+            "type": "DECIMAL(5,2)",
+            "note": "pH"
+          },
+          {
+            "name": "remark",
+            "type": "NVARCHAR(500)"
+          },
+          {
+            "name": "result_code",
+            "type": "VARCHAR(10)",
+            "key": "FK"
+          },
+          {
+            "name": "judge_emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "judge_name",
+            "type": "NVARCHAR(30)"
+          },
+          {
+            "name": "legacy_updated_date",
+            "type": "DATE"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.change_log",
+        "store": "mes",
+        "group": "change-log",
+        "status": "planned",
+        "audit": false,
+        "description": "修改紀錄(取代 MESChangeLog);只新增不修改,沒有 updated_* / row_ver",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "batch_id",
+            "type": "BIGINT",
+            "key": "FK"
+          },
+          {
+            "name": "run_id_text",
+            "type": "NVARCHAR(50)",
+            "note": "舊 RunID 對不到 batch 時保留"
+          },
+          {
+            "name": "table_name",
+            "type": "VARCHAR(50)",
+            "note": "新資料:被修改的資料表"
+          },
+          {
+            "name": "record_id",
+            "type": "BIGINT",
+            "note": "新資料:被修改的紀錄 id"
+          },
+          {
+            "name": "changed_at",
+            "type": "DATETIME2(0)",
+            "note": "台北時間;舊資料只有日期(NULL)"
+          },
+          {
+            "name": "changed_date",
+            "type": "DATE",
+            "note": "台北日期"
+          },
+          {
+            "name": "changed_by",
+            "type": "NVARCHAR(50)",
+            "note": "舊為 AD 帳號;新資料為工號"
+          },
+          {
+            "name": "changed_by_name",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "station_label",
+            "type": "NVARCHAR(100)",
+            "note": "舊為中文站別;新資料另寫 table_name"
+          },
+          {
+            "name": "field_name",
+            "type": "NVARCHAR(50)",
+            "note": "舊英文欄位名(新資料為新欄位名)"
+          },
+          {
+            "name": "field_label",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "old_value",
+            "type": "NVARCHAR(MAX)"
+          },
+          {
+            "name": "new_value",
+            "type": "NVARCHAR(MAX)"
+          },
+          {
+            "name": "reason",
+            "type": "NVARCHAR(1000)",
+            "note": "舊 NVARCHAR(MAX);超過 1000 字 → text_too_long"
+          },
+          {
+            "name": "legacy_id",
+            "type": "INT",
+            "note": "舊表 id(轉移比對用)"
+          }
+        ]
+      },
+      {
+        "id": "mes.qc_spec",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "規格上下限(取代寫死的 QCRuleJudgment.js、IQCRuleJudgment.js;Q4)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "inspection_code",
+            "type": "VARCHAR(20)",
+            "key": "FK"
+          },
+          {
+            "name": "product_code",
+            "type": "NVARCHAR(30)",
+            "key": "FK",
+            "note": "NULL = 不分產品(IQC)"
+          },
+          {
+            "name": "item_code",
+            "type": "VARCHAR(60)",
+            "note": "對應檢驗表欄位名(例 hot_glue_viscosity_1)"
+          },
+          {
+            "name": "item_label",
+            "type": "NVARCHAR(50)",
+            "note": "舊規則表的中文項目名(例 熱熔膠黏度-1),通知信與錯誤訊息使用"
+          },
+          {
+            "name": "compare_mode",
+            "type": "VARCHAR(10)",
+            "note": "range:下限~上限(含邊界);gt:> 下限(舊 min = max)"
+          },
+          {
+            "name": "lower_limit",
+            "type": "DECIMAL(18,6)"
+          },
+          {
+            "name": "upper_limit",
+            "type": "DECIMAL(18,6)",
+            "note": "gt 時 NULL"
+          },
+          {
+            "name": "effective_from",
+            "type": "DATE"
+          },
+          {
+            "name": "effective_to",
+            "type": "DATE"
+          }
+        ]
+      },
+      {
+        "id": "mes.notify_rule",
+        "store": "mes",
+        "group": "m4",
+        "status": "planned",
+        "audit": true,
+        "description": "異常通知收件人(工號,經 Gateway 通知 API 逐人寄送;Q12)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "inspection_code",
+            "type": "VARCHAR(20)",
+            "key": "FK"
+          },
+          {
+            "name": "emp_no",
+            "type": "NVARCHAR(20)"
+          },
+          {
+            "name": "is_active",
+            "type": "BIT"
+          }
+        ]
+      },
+      {
+        "id": "mes.export_job",
+        "store": "mes",
+        "group": "m7",
+        "status": "planned",
+        "audit": true,
+        "description": "Excel 匯出工作(送出 → 查詢 → 下載;只有建立者可查)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "job_key",
+            "type": "UNIQUEIDENTIFIER",
+            "note": "對外的工作編號"
+          },
+          {
+            "name": "kind",
+            "type": "VARCHAR(30)",
+            "note": "例 energy-summary"
+          },
+          {
+            "name": "params",
+            "type": "NVARCHAR(2000)",
+            "note": "篩選條件(JSON 字串,只由程式讀寫,不在 SQL 解析)"
+          },
+          {
+            "name": "status",
+            "type": "VARCHAR(10)"
+          },
+          {
+            "name": "total_rows",
+            "type": "INT"
+          },
+          {
+            "name": "file_name",
+            "type": "NVARCHAR(100)"
+          },
+          {
+            "name": "file_content",
+            "type": "VARBINARY(MAX)"
+          },
+          {
+            "name": "error_code",
+            "type": "VARCHAR(50)"
+          },
+          {
+            "name": "finished_at",
+            "type": "DATETIME2(3)"
+          },
+          {
+            "name": "expires_at",
+            "type": "DATETIME2(3)",
+            "note": "到期後清除(預設 24 小時)"
+          }
+        ]
+      },
+      {
+        "id": "mes.migration_issue",
+        "store": "mes",
+        "group": "t1",
+        "status": "planned",
+        "audit": false,
+        "description": "轉移時無法轉型或對應的值(只供 T1)",
+        "columns": [
+          {
+            "name": "id",
+            "type": "BIGINT",
+            "key": "PK"
+          },
+          {
+            "name": "run_no",
+            "type": "INT",
+            "note": "第幾次轉移"
+          },
+          {
+            "name": "source_table",
+            "type": "VARCHAR(60)"
+          },
+          {
+            "name": "source_id",
+            "type": "INT"
+          },
+          {
+            "name": "source_column",
+            "type": "VARCHAR(80)"
+          },
+          {
+            "name": "raw_value",
+            "type": "NVARCHAR(4000)"
+          },
+          {
+            "name": "issue_kind",
+            "type": "VARCHAR(30)"
+          },
+          {
+            "name": "target_table",
+            "type": "VARCHAR(60)"
+          },
+          {
+            "name": "target_column",
+            "type": "VARCHAR(60)"
+          },
+          {
+            "name": "message",
+            "type": "NVARCHAR(500)"
+          }
+        ]
+      }
+    ],
+    "relations": [
+      {
+        "from": "mes.product",
+        "to": "mes.batch",
+        "card": "1:N",
+        "column": "product_code",
+        "label": "product_code"
+      },
+      {
+        "from": "mes.process_type",
+        "to": "mes.batch",
+        "card": "1:N",
+        "column": "process_code",
+        "label": "process_code"
+      },
+      {
+        "from": "mes.station",
+        "to": "mes.batch",
+        "card": "1:N",
+        "column": "station_code",
+        "label": "station_code"
+      },
+      {
+        "from": "mes.batch_state",
+        "to": "mes.batch",
+        "card": "1:N",
+        "column": "state_code",
+        "label": "state_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.batch_rework_source",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.batch_rework_source",
+        "card": "1:N",
+        "column": "source_batch_id",
+        "label": "source_batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.synthesis_1",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.synthesis_1",
+        "to": "mes.synthesis_1_material",
+        "card": "1:N",
+        "column": "synthesis_1_id",
+        "label": "synthesis_1_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.synthesis_2",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.synthesis_2",
+        "to": "mes.synthesis_2_material",
+        "card": "1:N",
+        "column": "synthesis_2_id",
+        "label": "synthesis_2_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.drying",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.crushing",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.filling",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.ipqc_1",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.ipqc_1",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.ipqc_2",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.ipqc_2",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.ipqc_3",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.ipqc_3",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.ipqc_4",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.ipqc_4",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.fqc",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.fqc",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.improve",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.improve",
+        "to": "mes.improve_material",
+        "card": "1:N",
+        "column": "improve_id",
+        "label": "improve_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.adjustment",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.adjustment",
+        "to": "mes.adjustment_material",
+        "card": "1:N",
+        "column": "adjustment_id",
+        "label": "adjustment_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.ipqc_adjustment",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.ipqc_adjustment",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.improve_filling",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.rework",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.rework",
+        "card": "1:N",
+        "column": "source_batch_id",
+        "label": "source_batch_id"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.sample",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.sample",
+        "to": "mes.sample_disposal",
+        "card": "1:N",
+        "column": "sample_id",
+        "label": "sample_id"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.iqc_organic",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.iqc_solid",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.iqc_salt",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.qc_result",
+        "to": "mes.iqc_improve_additive",
+        "card": "1:N",
+        "column": "result_code",
+        "label": "result_code"
+      },
+      {
+        "from": "mes.batch",
+        "to": "mes.change_log",
+        "card": "1:N",
+        "column": "batch_id",
+        "label": "batch_id"
+      },
+      {
+        "from": "mes.inspection_type",
+        "to": "mes.qc_spec",
+        "card": "1:N",
+        "column": "inspection_code",
+        "label": "inspection_code"
+      },
+      {
+        "from": "mes.product",
+        "to": "mes.qc_spec",
+        "card": "1:N",
+        "column": "product_code",
+        "label": "product_code"
+      },
+      {
+        "from": "mes.inspection_type",
+        "to": "mes.notify_rule",
+        "card": "1:N",
+        "column": "inspection_code",
+        "label": "inspection_code"
+      }
+    ],
+    "redisKeys": []
+  }
+}

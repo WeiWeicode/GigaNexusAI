@@ -33,6 +33,7 @@ GigaNexus 是公司地端的單一入口平台:員工與系統的流量都經 **
 | `giga-observe/` | 觀測服務(W9,測試區已上線):API / Nginx / 前端監控的資料後端,由 DevOpsDiagram 複製;畫面在 GigaItApp | `AGENT.md`、`giga-api-gateway-bff/docs/MONITORING-PLAN.md` |
 | `giga-file-service/` | 附件服務(W11,2026-10-08 測試區上線:F1 檔案 API、F2 NAS 備份、F6 BPM 附件 191 / 190;F4 / F7 規劃):`file-api` :51272,UUID 上傳 / 下載、WSL + NAS 備份、BPM 附件唯讀、舊系統對照與舊格式相容層;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `AGENT.md`、`docs/HANDOFF.md`、`docs/PRD.md`、`docs/PROJECT-MAP.md` |
 | `NetOps/` | 資訊網通管理系統:PA-560 防火牆 log、即時監控戰情室、AD 事件、網通知識庫、AI 分析與問答。舊版部署於 IIS;接入 Gateway(`/netops/`、`netops-api` :51292,W12)已上測試區。規劃中:AI 搬進新版(直連 AI 主機)、PA 即時監控(pan-os-python + Redis);不寫資料庫 | `AGENT.md`、`docs/ARCHITECTURE.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md` |
+| `giga-MES/` | 製造執行系統(規劃中,2026-11-25 建立):舊 `wei_web` 儲能膠 MES 轉移,行為照抄、資料表重建並轉移舊資料;`/mes/`、`mes-api` :51210、獨立資料庫 `giganexus_mes`(schema `mes`)。舊系統程式在工作區上一層 `../wei_web/`(只讀) | `AGENT.md`、`docs/MIGRATION-PLAN.md`、`docs/HANDOFF.md` |
 | `GigaNexusAIPlan/` | 平台建置甘特圖(NexusPlan)與**架構圖網站**、架構資料 | `README.md`、`architecture/README.md` |
 | `hello-world/` | 驗證公司 GitLab CI/CD 的範例 | `README.md` |
 
